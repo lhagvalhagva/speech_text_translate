@@ -376,18 +376,18 @@ const SpeechToText = () => {
               {allTranscripts.map((text, index) => (
                 <div
                   key={index}
-                  className="mb-3 text-sm md:text-base leading-relaxed"
+                  className="mb-3 text-base md:text-lg leading-relaxed text-black font-medium"
                 >
                   {text}
                 </div>
               ))}
               {interimTranscript && (
-                <div className="text-gray-500 italic text-sm md:text-base">
+                <div className="text-base md:text-lg text-gray-600 italic">
                   {interimTranscript}
                 </div>
               )}
               {allTranscripts.length === 0 && !interimTranscript && (
-                <div className="flex flex-col items-center justify-center h-full text-gray-500 text-sm md:text-base">
+                <div className="flex flex-col items-center justify-center h-full text-gray-500">
                   <Mic className="w-8 h-8 mb-2 opacity-50" />
                   <p>Start speaking...</p>
                 </div>
@@ -414,13 +414,13 @@ const SpeechToText = () => {
               {allTranslations.map((text, index) => (
                 <div
                   key={index}
-                  className="mb-3 text-sm md:text-base leading-relaxed"
+                  className="mb-3 text-base md:text-lg leading-relaxed text-black font-medium"
                 >
                   {text}
                 </div>
               ))}
               {allTranslations.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-full text-gray-500 text-sm md:text-base">
+                <div className="flex flex-col items-center justify-center h-full text-gray-500">
                   <svg
                     className="w-8 h-8 mb-2 opacity-50"
                     fill="none"
