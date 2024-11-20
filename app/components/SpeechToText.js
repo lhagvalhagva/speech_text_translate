@@ -44,6 +44,15 @@ const SpeechToText = () => {
     checkBrowser();
   }, []);
 
+  useEffect(() => {
+    // Page view бүртгэх
+    window.gtag("event", "page_view", {
+      page_title: "Speech to Text",
+      page_location: window.location.href,
+      page_path: window.location.pathname,
+    });
+  }, []);
+
   const toggleListening = async () => {
     if (!recognition) {
       setError("Speech Recognition is not initialized");
@@ -370,7 +379,7 @@ const SpeechToText = () => {
         }, 500);
       }, 3000);
     } else {
-      // Буруу код оруулсан үед улаан өнгөтэй alert
+      // Буруу код оруулсан үе улаан өнгөтэй alert
       const errorMessage = document.createElement("div");
       errorMessage.className =
         "fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg transition-opacity duration-500 flex items-center";
@@ -522,6 +531,16 @@ const SpeechToText = () => {
         </div>
       </div>
     );
+  };
+
+  const handleMicClick = () => {
+    // Event бүртгэх
+    window.gtag("event", "mic_click", {
+      event_category: "engagement",
+      event_label: "Microphone button clicked",
+    });
+
+    // ... бусад код
   };
 
   return (

@@ -15,25 +15,32 @@ const geistMono = localFont({
 });
 
 export const metadata = {
-  title: "Speech to Text - Монгол яриаг текст болгогч",
+  title: "Монгол яриаг текст болгогч | Speech to Text",
   description:
     "Монгол хэл дээрх яриаг текст болгох үнэгүй онлайн програм. Дуу хураагуураар ярихад таны яриаг шууд текст болгоно.",
-  keywords:
-    "speech to text, монгол хэл, яриа текст болгох, дуу бичлэг, орчуулга, үнэгүй",
-  openGraph: {
-    title: "Speech to Text - Монгол яриаг текст болгогч",
-    description: "Монгол хэл дээрх яриаг текст болгох үнэгүй онлайн програм",
-    url: "https://speeech.vercel.app",
-    siteName: "Speech to Text Монгол",
-    images: [
-      {
-        url: "https://speeech.vercel.app/og-image.png",
-        width: 1200,
-        height: 630,
-      },
-    ],
-    locale: "mn_MN",
-    type: "website",
+  keywords: [
+    "speech to text монгол",
+    "яриа текст болгох",
+    "монгол хэл текст",
+    "дуу бичлэг текст болгох",
+    "үнэгүй орчуулга",
+    "монгол яриа бичих",
+    "speech recognition mongolia",
+    "voice to text mongolian",
+  ].join(", "),
+  alternates: {
+    canonical: "https://speeech.vercel.app",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
 };
 
@@ -54,7 +61,10 @@ export default function RootLayout({ children }) {
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}');
+            gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}', {
+              debug_mode: true,
+              page_path: window.location.pathname,
+            });
           `}
         </Script>
         <link rel="icon" href="/cloud-favicon.ico" sizes="any" />
