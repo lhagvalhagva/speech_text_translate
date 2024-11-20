@@ -27,6 +27,9 @@ const SpeechToText = () => {
   const [lastSpeechTime, setLastSpeechTime] = useState(Date.now());
   const [allTranscripts, setAllTranscripts] = useState([]);
   const [allTranslations, setAllTranslations] = useState([]);
+  const [isTranslationEnabled, setIsTranslationEnabled] = useState(false);
+  const [translationCode, setTranslationCode] = useState("");
+  const CORRECT_CODE = "0213";
 
   const toggleListening = async () => {
     if (!recognition) {
@@ -159,33 +162,12 @@ const SpeechToText = () => {
 
     const initializeRecognition = () => {
       try {
-        const SpeechRecognition =
-          window.SpeechRecognition || window.webkitSpeechRecognition;
-
-        if (!SpeechRecognition) {
-          setError("Your browser doesn't support Speech Recognition API.");
-          return null;
-        }
-
-        const instance = new SpeechRecognition();
+        const instance = new (window.SpeechRecognition ||
+          window.webkitSpeechRecognition)();
 
         instance.continuous = true;
         instance.interimResults = true;
-        instance.maxAlternatives = 3;
         instance.lang = "en-US";
-
-        instance.audioStart = () => {
-          console.log("Audio capturing started");
-        };
-
-        instance.soundstart = () => {
-          console.log("Sound detected");
-        };
-
-        instance.speechstart = () => {
-          console.log("Speech detected");
-          setError(null);
-        };
 
         instance.onresult = async (event) => {
           const now = Date.now();
@@ -211,14 +193,18 @@ const SpeechToText = () => {
               if (bestResult.confidence >= CONFIDENCE_THRESHOLD) {
                 const cleanText = bestResult.transcript.trim();
 
-                // Шинэ мөр эхлэх эсэхийг шалгах
                 if (timeSinceLastSpeech > PAUSE_THRESHOLD) {
                   setAllTranscripts((prev) => [...prev, cleanText]);
 
-                  // Орчуулга хийх
-                  const translatedText = await translateText(cleanText);
-                  if (translatedText) {
-                    setAllTranslations((prev) => [...prev, translatedText]);
+                  // Орчуулга идэвхтэй үед шууд орчуулах
+                  console.log("Translation enabled:", isTranslationEnabled); // Debug log
+                  if (isTranslationEnabled) {
+                    console.log("Attempting to translate:", cleanText); // Debug log
+                    const translatedText = await translateText(cleanText);
+                    console.log("Translation result:", translatedText); // Debug log
+                    if (translatedText) {
+                      setAllTranslations((prev) => [...prev, translatedText]);
+                    }
                   }
                 }
               }
@@ -298,10 +284,12 @@ const SpeechToText = () => {
       }
     };
 
-    if (typeof window !== "undefined" && !recognition) {
+    const initRecognition = () => {
       recognitionInstance = initializeRecognition();
       setRecognition(recognitionInstance);
-    }
+    };
+
+    initRecognition();
 
     return () => {
       if (reconnectTimer) {
@@ -316,7 +304,7 @@ const SpeechToText = () => {
         }
       }
     };
-  }, [retryCount, isListening, reconnectTimer, isReconnecting]);
+  }, [isTranslationEnabled]);
 
   // Clear функцийг шинэчлэх
   const clearAll = () => {
@@ -325,6 +313,41 @@ const SpeechToText = () => {
     setInterimTranscript("");
     setError(null);
     setConfidence(0);
+  };
+
+  // Орчуулах функц нэмэх
+  const handleTranslate = async () => {
+    // Үлдсэн орчуулаагүй текстүүдийг олох
+    const untranslatedTexts = allTranscripts.slice(allTranslations.length);
+
+    for (const text of untranslatedTexts) {
+      const translatedText = await translateText(text);
+      if (translatedText) {
+        setAllTranslations((prev) => [...prev, translatedText]);
+      } else {
+        // Хэрэв орчуулга амжилтгүй болвол зогсоох
+        break;
+      }
+    }
+  };
+
+  // Код шалгах функц
+  const handleTranslationCode = () => {
+    const code = prompt("Орчуулахын тулд код хэрэгтэй📈:");
+    if (code === CORRECT_CODE) {
+      setIsTranslationEnabled(true);
+      setTranslationCode(code);
+      alert("Орчуулга идэвхжлээ!");
+    } else {
+      alert("Буруу код!");
+      setIsTranslationEnabled(false);
+    }
+  };
+
+  // Орчуулгын горимоос гарах функц
+  const handleDisableTranslation = () => {
+    setIsTranslationEnabled(false);
+    setTranslationCode("");
   };
 
   return (
@@ -403,12 +426,41 @@ const SpeechToText = () => {
               <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 Монгол орчуулга
               </h2>
-              {interimTranscript && (
-                <div className="text-sm text-gray-500 animate-pulse">
-                  Орчуулж байна...
-                </div>
-              )}
+              <div className="flex items-center gap-4">
+                {!isTranslationEnabled ? (
+                  <Button
+                    onClick={handleTranslationCode}
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90 transition-opacity"
+                  >
+                    Орчуулах
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm text-green-500">
+                      Орчуулга идэвхтэй
+                    </div>
+                    <Button
+                      onClick={handleDisableTranslation}
+                      className="bg-red-500 hover:bg-red-600 text-white text-sm px-3 py-1"
+                      size="sm"
+                    >
+                      Гарах
+                    </Button>
+                  </div>
+                )}
+                {interimTranscript && (
+                  <div className="text-sm text-gray-500 animate-pulse">
+                    Бэлэн болсон...
+                  </div>
+                )}
+              </div>
             </div>
+
+            {translationError && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                {translationError}
+              </div>
+            )}
 
             <div className="min-h-[300px] p-4 bg-gray-50 rounded-lg overflow-y-auto shadow-inner">
               {allTranslations.map((text, index) => (
