@@ -329,26 +329,28 @@ const SpeechToText = () => {
 
   return (
     <div className="w-full max-w-6xl mx-auto p-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* English Speech Recognition */}
-        <Card className="mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* English Speech Recognition Card */}
+        <Card className="overflow-hidden border-2 border-gray-100 shadow-lg hover:shadow-xl transition-shadow">
           <CardContent className="p-4 md:p-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
-              <h2 className="text-xl md:text-2xl font-bold">Speech to Text</h2>
-              <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+              <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Speech to Text
+              </h2>
+              <div className="flex gap-3 w-full sm:w-auto">
                 <Button
                   onClick={toggleListening}
-                  className={`${
+                  className={`flex-1 sm:flex-none ${
                     isListening
-                      ? "bg-red-500 hover:bg-red-600"
-                      : "bg-blue-500 hover:bg-blue-600"
-                  } text-sm md:text-base`}
+                      ? "bg-gradient-to-r from-red-500 to-red-600"
+                      : "bg-gradient-to-r from-blue-500 to-purple-600"
+                  } text-white hover:opacity-90 transition-opacity`}
                   disabled={!recognition}
                 >
                   {isListening ? (
-                    <MicOff className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" />
+                    <MicOff className="w-4 h-4 md:w-5 md:h-5 mr-2" />
                   ) : (
-                    <Mic className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" />
+                    <Mic className="w-4 h-4 md:w-5 md:h-5 mr-2" />
                   )}
                   {isListening ? "Stop" : "Start"}
                 </Button>
@@ -356,58 +358,83 @@ const SpeechToText = () => {
                   <Button
                     onClick={clearAll}
                     variant="outline"
-                    className="bg-gray-100 hover:bg-gray-200 text-sm md:text-base"
+                    className="flex-1 sm:flex-none border-2 hover:bg-gray-50"
                   >
                     Clear
                   </Button>
                 )}
               </div>
             </div>
+
             {error && (
-              <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
                 {error}
               </div>
             )}
-            <div className="min-h-[200px] md:min-h-[300px] p-3 md:p-4 bg-gray-100 rounded-lg overflow-y-auto">
-              {/* Бүх текстүүд */}
+
+            <div className="min-h-[300px] p-4 bg-gray-50 rounded-lg overflow-y-auto shadow-inner">
               {allTranscripts.map((text, index) => (
-                <div key={index} className="mb-2 text-sm md:text-base">
+                <div
+                  key={index}
+                  className="mb-3 text-sm md:text-base leading-relaxed"
+                >
                   {text}
                 </div>
               ))}
-              {/* Түр зуурын текст */}
               {interimTranscript && (
                 <div className="text-gray-500 italic text-sm md:text-base">
                   {interimTranscript}
                 </div>
               )}
               {allTranscripts.length === 0 && !interimTranscript && (
-                <div className="text-gray-500 text-sm md:text-base">
-                  Start speaking...
+                <div className="flex flex-col items-center justify-center h-full text-gray-500 text-sm md:text-base">
+                  <Mic className="w-8 h-8 mb-2 opacity-50" />
+                  <p>Start speaking...</p>
                 </div>
               )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Mongolian Translation */}
-        <Card className="mb-4">
+        {/* Mongolian Translation Card */}
+        <Card className="overflow-hidden border-2 border-gray-100 shadow-lg hover:shadow-xl transition-shadow">
           <CardContent className="p-4 md:p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl md:text-2xl font-bold">Монгол орчуулга</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Монгол орчуулга
+              </h2>
               {interimTranscript && (
-                <div className="text-sm text-gray-500">Орчуулж байна...</div>
+                <div className="text-sm text-gray-500 animate-pulse">
+                  Орчуулж байна...
+                </div>
               )}
             </div>
-            <div className="min-h-[200px] md:min-h-[300px] p-3 md:p-4 bg-gray-100 rounded-lg overflow-y-auto whitespace-pre-line">
+
+            <div className="min-h-[300px] p-4 bg-gray-50 rounded-lg overflow-y-auto shadow-inner">
               {allTranslations.map((text, index) => (
-                <div key={index} className="mb-2 text-sm md:text-base">
+                <div
+                  key={index}
+                  className="mb-3 text-sm md:text-base leading-relaxed"
+                >
                   {text}
                 </div>
               ))}
               {allTranslations.length === 0 && (
-                <div className="text-gray-500 text-sm md:text-base">
-                  Орчуулга энд харагдана...
+                <div className="flex flex-col items-center justify-center h-full text-gray-500 text-sm md:text-base">
+                  <svg
+                    className="w-8 h-8 mb-2 opacity-50"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
+                    />
+                  </svg>
+                  <p>Орчуулга энд харагдана...</p>
                 </div>
               )}
             </div>
