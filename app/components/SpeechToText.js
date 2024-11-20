@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Mic, MicOff } from "lucide-react";
+import { createRoot } from "react-dom/client";
 
 const SpeechToText = () => {
   const [isListening, setIsListening] = useState(false);
@@ -30,6 +31,7 @@ const SpeechToText = () => {
   const [isTranslationEnabled, setIsTranslationEnabled] = useState(false);
   const [translationCode, setTranslationCode] = useState("");
   const CORRECT_CODE = "0213";
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const toggleListening = async () => {
     if (!recognition) {
@@ -248,10 +250,10 @@ const SpeechToText = () => {
                 setError("Микрофон ашиглах зөвшөөрөл өгөөгүй байна.");
                 break;
               case "no-speech":
-                setError("Ямар нэгэн дуу сонсогдсонгүй");
+                setError("Ямар нэгэн ду сонсогдсонгүй");
                 break;
               case "audio-capture":
-                setError("Микрофон олдсонгүй. Микрофоноо шалгана уу.");
+                setError("Микрофон лдсонгүй. Микрофоноо шалгана уу.");
                 break;
               default:
                 setError(`Алдаа гарлаа: ${event.error}`);
@@ -331,23 +333,184 @@ const SpeechToText = () => {
     }
   };
 
-  // Код шалгах функц
+  // Код шалгах функц дотор alert-ийг custom dialog болгох
   const handleTranslationCode = () => {
-    const code = prompt("Орчуулахын тулд код хэрэгтэй📈:");
+    const code = prompt("Орчуулах кодоо оруулна уу:");
     if (code === CORRECT_CODE) {
       setIsTranslationEnabled(true);
       setTranslationCode(code);
-      alert("Орчуулга идэвхжлээ!");
+      // Alert-ийг custom toast болгох
+      const successMessage = document.createElement("div");
+      successMessage.className =
+        "fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg shadow-lg transition-opacity duration-500 flex items-center";
+      successMessage.innerHTML = `
+        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+        </svg>
+        <span class="font-medium">Орчуулга амжилттай идэвхжлээ!</span>
+      `;
+      document.body.appendChild(successMessage);
+
+      // 3 секундын дараа автоматаар алга болох
+      setTimeout(() => {
+        successMessage.style.opacity = "0";
+        setTimeout(() => {
+          document.body.removeChild(successMessage);
+        }, 500);
+      }, 3000);
     } else {
-      alert("Буруу код!");
+      // Буруу код оруулсан үед улаан өнгөтэй alert
+      const errorMessage = document.createElement("div");
+      errorMessage.className =
+        "fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg transition-opacity duration-500 flex items-center";
+      errorMessage.innerHTML = `
+        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+        </svg>
+        <span class="font-medium">Буруу код! Дахин оролдоно уу.</span>
+      `;
+      document.body.appendChild(errorMessage);
+
+      // 3 секундын дараа автоматаар алга болох
+      setTimeout(() => {
+        errorMessage.style.opacity = "0";
+        setTimeout(() => {
+          document.body.removeChild(errorMessage);
+        }, 500);
+      }, 3000);
+
       setIsTranslationEnabled(false);
     }
+  };
+
+  // Toast үзүүлэх функц
+  const showToast = (message, type) => {
+    const toast = document.createElement("div");
+    toast.style.zIndex = "9999";
+    document.body.appendChild(toast);
+
+    const root = createRoot(toast);
+    root.render(<Toast message={message} type={type} />);
+
+    // Fade out animation
+    setTimeout(() => {
+      toast.style.opacity = "0";
+      toast.style.transform = "translateY(-20px)";
+      toast.style.transition = "all 0.3s ease-in-out";
+
+      setTimeout(() => {
+        root.unmount();
+        document.body.removeChild(toast);
+      }, 300);
+    }, 3000);
   };
 
   // Орчуулгын горимоос гарах функц
   const handleDisableTranslation = () => {
     setIsTranslationEnabled(false);
     setTranslationCode("");
+    // Toast мессеж харуулах
+    showToast("Орчуулгын горимоос гарлаа", "success");
+  };
+
+  // Toast компонент
+  const Toast = ({ message, type }) => (
+    <div
+      className={`
+        fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg 
+        flex items-center space-x-2 
+        transform transition-all duration-300
+        z-[9999]
+        ${
+          type === "success"
+            ? "bg-green-100 text-green-800 border border-green-200"
+            : "bg-red-100 text-red-800 border border-red-200"
+        }
+      `}
+      style={{
+        pointerEvents: "none",
+      }}
+    >
+      {type === "success" ? (
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <path
+            fillRule="evenodd"
+            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+            clipRule="evenodd"
+          />
+        </svg>
+      ) : (
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <path
+            fillRule="evenodd"
+            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+            clipRule="evenodd"
+          />
+        </svg>
+      )}
+      <span className="font-medium">{message}</span>
+    </div>
+  );
+
+  // Custom Modal компонент
+  const TranslationCodeModal = ({ isOpen, onClose }) => {
+    const [code, setCode] = useState("");
+
+    const handleSubmit = () => {
+      if (code === CORRECT_CODE) {
+        setIsTranslationEnabled(true);
+        setTranslationCode(code);
+        showToast("Орчуулга амжилттай идэвхжлээ!", "success");
+        onClose();
+      } else {
+        showToast("Буруу код! Дахин оролдоно уу.", "error");
+        setCode("");
+      }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl transform transition-all">
+          <div className="mb-6">
+            <h3 className="text-xl font-bold text-gray-900">
+              Орчуулгын код оруулах
+            </h3>
+            <p className="mt-2 text-sm text-gray-500">
+              Орчуулгыг идэвхжүүлэхийн тулд зөв код оруулна уу.
+            </p>
+          </div>
+
+          <div className="mb-6">
+            <input
+              type="password"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              className="w-full px-4 py-3 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              placeholder="Кодоо оруулна уу"
+              autoFocus
+            />
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 border border-gray-300 rounded-lg transition-colors"
+            >
+              Цуцлах
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg hover:opacity-90 transition-opacity"
+            >
+              Батлах
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -429,7 +592,7 @@ const SpeechToText = () => {
               <div className="flex items-center gap-4">
                 {!isTranslationEnabled ? (
                   <Button
-                    onClick={handleTranslationCode}
+                    onClick={() => setIsModalOpen(true)}
                     className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90 transition-opacity"
                   >
                     Орчуулах
@@ -493,6 +656,11 @@ const SpeechToText = () => {
           </CardContent>
         </Card>
       </div>
+
+      <TranslationCodeModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </div>
   );
 };
