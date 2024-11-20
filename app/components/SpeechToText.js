@@ -608,8 +608,27 @@ const SpeechToText = () => {
                 </div>
               ))}
               {interimTranscript && (
-                <div className="text-base md:text-lg text-gray-600 italic">
-                  {interimTranscript}
+                <div className="relative">
+                  <div className="text-base md:text-lg text-gray-400 italic opacity-60 break-words">
+                    {interimTranscript}
+                  </div>
+                  <div className="absolute right-0 bottom-0 flex items-center text-gray-400 text-sm">
+                    <span className="mr-2">Бичиж байна</span>
+                    <div className="flex space-x-1">
+                      <div
+                        className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "0ms" }}
+                      ></div>
+                      <div
+                        className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "150ms" }}
+                      ></div>
+                      <div
+                        className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "300ms" }}
+                      ></div>
+                    </div>
+                  </div>
                 </div>
               )}
               {allTranscripts.length === 0 && !interimTranscript && (
@@ -674,7 +693,30 @@ const SpeechToText = () => {
                   {text}
                 </div>
               ))}
-              {allTranslations.length === 0 && (
+              {interimTranscript && isTranslationEnabled && (
+                <div className="relative">
+                  <div className="text-base md:text-lg text-gray-400 italic opacity-60 break-words">
+                    Орчуулж байна...
+                  </div>
+                  <div className="absolute right-0 bottom-0 flex items-center text-gray-400 text-sm">
+                    <div className="flex space-x-1">
+                      <div
+                        className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "0ms" }}
+                      ></div>
+                      <div
+                        className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "150ms" }}
+                      ></div>
+                      <div
+                        className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "300ms" }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {allTranslations.length === 0 && !interimTranscript && (
                 <div className="flex flex-col items-center justify-center h-full text-gray-500">
                   <svg
                     className="w-8 h-8 mb-2 opacity-50"
