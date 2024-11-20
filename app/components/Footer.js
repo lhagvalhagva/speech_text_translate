@@ -35,7 +35,7 @@ const Footer = () => {
               <span className="sr-only">Facebook</span>
             </a>
             <a
-              href="mailto:lhagvalhagva@gmail.com"
+              href="mailto:lhagvabatulzii@gmail.com"
               className="hover:text-gray-200 transition-colors p-2"
               title="Gmail"
             >
