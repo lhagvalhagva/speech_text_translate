@@ -1,7 +1,13 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import {
+  getFirestore,
+  enableIndexedDbPersistence,
+  CACHE_SIZE_UNLIMITED,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentSingleTabManager,
+} from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDhLNT47nhx5Ipf65j8W0Zw6kV7UVFHj8Q",
@@ -13,7 +19,27 @@ const firebaseConfig = {
   measurementId: "G-788BG412M2",
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+
+// Initialize Firestore with persistence
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+    tabManager: persistentSingleTabManager(),
+  }),
+});
+
+// Enable offline persistence
+try {
+  enableIndexedDbPersistence(db);
+} catch (err) {
+  if (err.code === "failed-precondition") {
+    // Multiple tabs open, persistence can only be enabled in one tab at a time.
+    console.log("Persistence failed: Multiple tabs open");
+  } else if (err.code === "unimplemented") {
+    // The current browser doesn't support persistence
+    console.log("Persistence not supported");
+  }
+}

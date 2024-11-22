@@ -6,10 +6,33 @@ import { Button } from "../components/ui/button";
 import { Mic, MicOff, Upload, Search, Info } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import { db } from "../lib/firebase";
-import { collection, addDoc } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  query,
+  where,
+  getDocs,
+  orderBy,
+  Timestamp,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
 import { useAuth } from "./auth/AuthProvider";
 import mammoth from "mammoth";
 import { Alert, AlertDescription } from "./ui/alert";
+import { useToast } from "./ui/use-toast";
+import { cn } from "../lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "./ui/alert-dialog";
 
 const highlightText = (text) => {
   if (!text) return null;
@@ -38,6 +61,7 @@ const highlightText = (text) => {
 };
 
 const SpeechToText = () => {
+  const { toast } = useToast();
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [recognition, setRecognition] = useState(null);
@@ -77,6 +101,11 @@ const SpeechToText = () => {
   const [bracketWords, setBracketWords] = useState([]);
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
+  const [savedFiles, setSavedFiles] = useState([]);
+  const [loadingError, setLoadingError] = useState(null);
+  const [isOffline, setIsOffline] = useState(false);
+  const maxRetries = 3;
+  const retryDelay = 2000; // 2 seconds
 
   // Browser check useEffect дотор хийх
   useEffect(() => {
@@ -95,6 +124,20 @@ const SpeechToText = () => {
       page_location: window.location.href,
       page_path: window.location.pathname,
     });
+  }, []);
+
+  // Network status monitoring
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
   }, []);
 
   const toggleListening = async () => {
@@ -219,7 +262,7 @@ const SpeechToText = () => {
         }
       } catch (e) {
         console.warn("Reconnection attempt failed:", e);
-        setError("Дахин холбогдох оролдлого амжилт��й боллоо.");
+        setError("Дахин холбогдох оролдлого амжилтй боллоо.");
         setIsListening(false);
       } finally {
         setIsReconnecting(false);
@@ -383,7 +426,7 @@ const SpeechToText = () => {
 
   // Орчуулах функц эмэх
   const handleTranslate = async () => {
-    // Үлдсэн орчуулаагүй текстүүдийг олох
+    // Үлдсэн орчуулаагй текстүүдийг олох
     const untranslatedTexts = allTranscripts.slice(allTranslations.length);
 
     for (const text of untranslatedTexts) {
@@ -423,7 +466,7 @@ const SpeechToText = () => {
         }, 500);
       }, 3000);
     } else {
-      // Буруу код оруулсан үе улаан өнгөтэй alert
+      // Буруу код оруулса үе улаан өнгөтэй alert
       const errorMessage = document.createElement("div");
       errorMessage.className =
         "fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg transition-opacity duration-500 flex items-center";
@@ -447,7 +490,7 @@ const SpeechToText = () => {
     }
   };
 
-  // Toast үзүүлэх функц
+  // Toast үзүүлх функц
   const showToast = (message, type) => {
     const toast = document.createElement("div");
     toast.style.zIndex = "9999";
@@ -662,7 +705,7 @@ const SpeechToText = () => {
 
   // Хайлтын функцийг дэлгэрэнгүй logging-тэй болгох
   const searchInFile = () => {
-    // лдааг цэвэрлэх
+    // лааг цэвэрлэх
     setError(null);
 
     // Оролтын утгуудыг шалгах
@@ -681,7 +724,7 @@ const SpeechToText = () => {
     const matches = transcript.match(bracketRegex);
 
     if (!matches) {
-      setError("[] хаалтан дотор үг олдсонгүй");
+      setError("[] хаалтан дотр үг олдсонгүй");
       return;
     }
 
@@ -788,7 +831,7 @@ const SpeechToText = () => {
             lastIndex = result.end;
           });
 
-          // Үлдсэн текст
+          // Үлдсэн тек��т
           if (lastIndex < line.length) {
             parts.push(<span key="text-end">{line.slice(lastIndex)}</span>);
           }
@@ -803,7 +846,7 @@ const SpeechToText = () => {
     );
   };
 
-  // [] хаалтан дахь үгсийг олох
+  // [] хаалтан дахь үсиг олох
   const findBracketWords = (text) => {
     const matches = text.match(/\[(.*?)\]/g) || [];
     return matches.map((match) => match.slice(1, -1)); // [] хаалтыг хасаж авах
@@ -847,7 +890,7 @@ const SpeechToText = () => {
 
     setSearchResults(results);
 
-    // Эхний олдсон үг рүү scroll хийх
+    // хний олдсон үг рүү scroll хийх
     if (results.length > 0) {
       const range = document.createRange();
       const textNode = container.firstChild;
@@ -873,6 +916,192 @@ const SpeechToText = () => {
       return () => clearTimeout(timer); // cleanup
     }
   }, [isSearchMode]);
+
+  // Файлуудыг Firestore-д хадгалах
+  const saveFileToFirestore = async (fileName, content) => {
+    if (!user) {
+      throw new Error("Та нэвтрээгүй байна");
+    }
+
+    try {
+      const docRef = await addDoc(collection(db, "files"), {
+        userId: user.uid,
+        fileName: fileName,
+        content: content,
+        createdAt: Timestamp.now(),
+      });
+
+      return {
+        id: docRef.id,
+        fileName,
+        content,
+        createdAt: Timestamp.now(),
+      };
+    } catch (error) {
+      if (error.code === "permission-denied") {
+        throw new Error("Файл хадгалах эрх хүрэлцэхгүй байна");
+      }
+      throw new Error("Файл хадгалахад алдаа гарлаа");
+    }
+  };
+
+  // Retry function with exponential backoff
+  const retryOperation = async (operation, retries = 0) => {
+    try {
+      return await operation();
+    } catch (error) {
+      if (retries < maxRetries) {
+        const delay = retryDelay * Math.pow(2, retries);
+        console.log(`Retrying after ${delay}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return retryOperation(operation, retries + 1);
+      }
+      throw error;
+    }
+  };
+
+  // Modified loadSavedFiles with retry
+  const loadSavedFiles = async () => {
+    if (!user) return;
+
+    try {
+      setLoadingError(null);
+
+      const operation = async () => {
+        const q = query(
+          collection(db, "files"),
+          where("userId", "==", user.uid),
+          orderBy("createdAt", "desc")
+        );
+
+        const querySnapshot = await getDocs(q);
+        const files = [];
+        querySnapshot.forEach((doc) => {
+          files.push({ id: doc.id, ...doc.data() });
+        });
+        return files;
+      };
+
+      const files = await retryOperation(operation);
+      setSavedFiles(files);
+    } catch (error) {
+      console.error("Error loading files:", error);
+
+      if (error.code === "unavailable") {
+        setLoadingError(
+          "Сүлжээний алдаа гарлаа. Та интернет холболтоо шалгана уу."
+        );
+      } else {
+        setLoadingError("Файлуудыг ачаалахад алдаа гарлаа. Дахин оролдоно уу.");
+      }
+    }
+  };
+
+  // User өөрчлөгдөх үед файлуудыг ачаалах
+  useEffect(() => {
+    if (user) {
+      loadSavedFiles();
+    } else {
+      setSavedFiles([]);
+    }
+  }, [user]);
+
+  // Файл уншиж авах функц
+  const readFileContent = async (file) => {
+    try {
+      if (
+        file.type ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ) {
+        // .docx файл
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        return result.value;
+      } else {
+        // .txt файл
+        return await file.text();
+      }
+    } catch (error) {
+      throw new Error("Файл уншихад алдаа гарлаа");
+    }
+  };
+
+  // Файл оруулах handler
+  const handleFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    // File size check
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        variant: "destructive",
+        title: "Файлын хэмжээ хэтэрсэн",
+        description: "Файлын хэмжээ 5MB-с их байж болохгүй",
+      });
+      return;
+    }
+
+    setIsProcessingFile(true);
+    setFileError(null);
+
+    try {
+      // Файл уншиж авах
+      const content = await readFileContent(file);
+
+      // Firestore-д хадгалах
+      const savedFile = await saveFileToFirestore(file.name, content);
+
+      // UI шинэчлэх
+      setFileText(content);
+      setSavedFiles((prev) => [savedFile, ...prev]);
+
+      // Success toast
+      toast({
+        title: "Амжилттай",
+        description: "Файл амжилттай хадгалагдлаа",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("File processing error:", error);
+
+      // UI error message
+      setFileError(error.message);
+
+      // Error toast
+      toast({
+        variant: "destructive",
+        title: "Алдаа гарлаа",
+        description: error.message || "Файл оруулахад алдаа гарлаа",
+      });
+    } finally {
+      setIsProcessingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  // Файл устгах функц
+  const handleDeleteFile = async (fileId) => {
+    if (!user) return;
+
+    try {
+      await deleteDoc(doc(db, "files", fileId));
+      setSavedFiles((prev) => prev.filter((file) => file.id !== fileId));
+
+      toast({
+        description: "Файл амжилттай устгагдлаа",
+      });
+    } catch (error) {
+      console.error("Error deleting file:", error);
+
+      toast({
+        variant: "destructive",
+        description: "Файл устгахад алдаа гарлаа",
+      });
+    }
+  };
 
   return (
     <div className="w-full max-w-6xl mx-auto p-4">
@@ -906,55 +1135,76 @@ const SpeechToText = () => {
       )}
 
       {/* File Upload Section */}
-      <Card className="mb-6 overflow-hidden border-2 border-gray-100 shadow-lg hover:shadow-xl transition-shadow">
-        <CardContent className="p-4 md:p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Файлаас текст оруулах
-            </h2>
-            <div className="flex items-center gap-4">
-              <Button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2"
-                disabled={isProcessingFile}
-              >
-                <Upload className="w-4 h-4" />
-                Файл сонгох
-              </Button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                accept=".txt,.docx"
-                className="hidden"
-              />
-              {isProcessingFile && (
-                <div className="text-sm text-gray-500">Уншиж байна...</div>
-              )}
-              {fileError && (
-                <div className="text-sm text-red-500">{fileError}</div>
-              )}
-            </div>
-          </div>
-
-          {fileText && !fileError && (
-            <div className="mt-4 bg-white rounded-lg border shadow-sm">
-              <div className="max-h-[200px] overflow-y-auto p-4 custom-scrollbar">
-                <div className="whitespace-pre-wrap break-words text-xs leading-[1.2] text-gray-600">
-                  {highlightText(fileText)}
+      <Card className="overflow-hidden">
+        <CardContent className="p-4">
+          <div className="flex flex-col gap-4">
+            {user ? (
+              // Нэвтэрсэн үед харуулах
+              <>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    Файл оруулах
+                  </h2>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept=".docx,.txt"
+                    className="hidden"
+                  />
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isProcessingFile || !user}
+                    className={cn(
+                      "flex items-center gap-2 text-white", // text-white нэмсэн
+                      isProcessingFile
+                        ? "bg-gray-400"
+                        : "bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90"
+                    )}
+                  >
+                    {isProcessingFile ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                        <span>Боловсруулж байна...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        <span>Файл оруулах</span>
+                      </>
+                    )}
+                  </Button>
                 </div>
-              </div>
-            </div>
-          )}
 
-          {!user && (
-            <div className="text-sm text-gray-500 mt-2">
-              Файл оруулахын тулд нэвтэрнэ үү
-            </div>
-          )}
+                {fileError && (
+                  <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-600">{fileError}</p>
+                  </div>
+                )}
+
+                {fileText && !fileError && (
+                  <div className="mt-4 bg-white rounded-lg border shadow-sm">
+                    <div className="max-h-[200px] overflow-y-auto p-4 custom-scrollbar">
+                      <div className="whitespace-pre-wrap break-words text-xs leading-[1.2] text-gray-600">
+                        {highlightText(fileText)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              // Нэвтрээгүй үед харуулах
+              <div className="flex flex-col items-center justify-center py-8 px-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                <Upload className="w-12 h-12 text-gray-400 mb-3" />
+                <p className="text-gray-600 text-center mb-2">
+                  Файл оруулахын тулд нэвтэрнэ үү
+                </p>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
-
+      <br></br>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* English Speech Recognition Card */}
         <Card className="overflow-hidden border-2 border-gray-100 shadow-lg hover:shadow-xl transition-shadow">
@@ -1203,6 +1453,138 @@ const SpeechToText = () => {
             Хайх үгийг [ ] хаалтанд хэлнэ. Жишээ нь: [hello]
           </p>
         </div>
+      )}
+
+      {user && (
+        <Card className="overflow-hidden mt-4">
+          <CardContent className="p-4">
+            <div className="flex flex-col gap-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Өмнө оруулсан файлууд
+                </h3>
+
+                <Button
+                  onClick={loadSavedFiles}
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                </Button>
+              </div>
+
+              {/* Error message */}
+              {loadingError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                  {loadingError}
+                </div>
+              )}
+
+              {savedFiles.length > 0 ? (
+                <div className="grid gap-3">
+                  {savedFiles.map((file) => (
+                    <div
+                      key={file.id}
+                      className="p-3 bg-white rounded-lg border hover:border-purple-300 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div
+                          className="flex items-center gap-2 flex-1 cursor-pointer"
+                          onClick={() => setFileText(file.content)}
+                        >
+                          <svg
+                            className="w-5 h-5 text-gray-500 shrink-0"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                          <div className="min-w-0 flex-1">
+                            <span className="text-sm font-medium text-gray-700 truncate block">
+                              {file.fileName}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {file.createdAt.toDate().toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Delete button with confirmation */}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <button
+                              className="p-2 rounded-full hover:bg-red-50 text-red-500 transition-colors"
+                              title="Устгах"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
+                            </button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Файл устгах уу?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Энэ үйлдлийг буцаах боломжгүй. Файл бүр мөсөн
+                                устах болно.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Цуцлах</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteFile(file.id)}
+                                className="bg-red-500 hover:bg-red-600 text-white"
+                              >
+                                Устгах
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                !loadingError && (
+                  <div className="text-center py-8 text-gray-500">
+                    Одоогоор файл оруулаагүй байна
+                  </div>
+                )
+              )}
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

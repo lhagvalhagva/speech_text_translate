@@ -4,6 +4,7 @@ import Script from "next/script";
 import { Providers } from "./components/Providers";
 import { AuthProvider } from "./components/auth/AuthProvider";
 import Header from "./components/Header";
+import { Toaster } from "./components/ui/toaster";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -81,6 +82,7 @@ export default function RootLayout({ children }) {
           <AuthProvider>
             <Header />
             <main className="min-h-screen">{children}</main>
+            <Toaster />
           </AuthProvider>
         </Providers>
       </body>
