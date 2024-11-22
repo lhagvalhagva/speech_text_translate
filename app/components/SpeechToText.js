@@ -41,7 +41,7 @@ const highlightText = (text) => {
   const squareBracketRegex = /\[(.*?)\]/g;
   let highlightedText = text.replace(
     squareBracketRegex,
-    '<span class="inline-block bg-purple-100 text-purple-900 px-1 py-0.5 rounded text-xs font-medium border border-purple-200 mx-0.5">[$1]</span>'
+    '<span class="inline-block bg-purple-100 text-purple-900 px-1 py-0.5 rounded text-xs font-medium border border-purple-200 mx-0.5 font-bold">[<strong>$1</strong>]</span>'
   );
 
   // {} хаалтанд байгаа үгсийг өнгөтэй болгох
@@ -460,7 +460,7 @@ const SpeechToText = () => {
       `;
       document.body.appendChild(successMessage);
 
-      // 3 секундын дараа автоматаар алга болох
+      // 3 секундын ��араа автоматаар алга болох
       setTimeout(() => {
         successMessage.style.opacity = "0";
         setTimeout(() => {
@@ -476,7 +476,7 @@ const SpeechToText = () => {
         <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
         </svg>
-        <span class="font-medium">Буруу код! Дахи�� оролдоно уу.</span>
+        <span class="font-medium">Буруу код! Дахи оролдоно уу.</span>
       `;
       document.body.appendChild(errorMessage);
 
@@ -721,7 +721,7 @@ const SpeechToText = () => {
       return;
     }
 
-    // Хаалтан доторх үгсийг олох
+    // Хаалт��н доторх үгсийг олох
     const bracketRegex = /\[(.*?)\]/g;
     const matches = transcript.match(bracketRegex);
 
