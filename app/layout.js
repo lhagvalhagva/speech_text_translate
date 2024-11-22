@@ -1,13 +1,16 @@
 import localFont from "next/font/local";
 import "./globals.css";
-import { Analytics } from "@vercel/analytics/react";
 import Script from "next/script";
+import { Providers } from "./components/Providers";
+import { AuthProvider } from "./components/auth/AuthProvider";
+import Header from "./components/Header";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",
   weight: "100 900",
 });
+
 const geistMono = localFont({
   src: "./fonts/GeistMonoVF.woff",
   variable: "--font-geist-mono",
@@ -74,8 +77,12 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
-        <Analytics />
+        <Providers>
+          <AuthProvider>
+            <Header />
+            <main className="min-h-screen">{children}</main>
+          </AuthProvider>
+        </Providers>
       </body>
     </html>
   );

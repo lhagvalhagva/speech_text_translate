@@ -1,10 +1,41 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { Mic, MicOff } from "lucide-react";
+import { Mic, MicOff, Upload, Search, Info } from "lucide-react";
 import { createRoot } from "react-dom/client";
+import { db } from "../lib/firebase";
+import { collection, addDoc } from "firebase/firestore";
+import { useAuth } from "./auth/AuthProvider";
+import mammoth from "mammoth";
+import { Alert, AlertDescription } from "./ui/alert";
+
+const highlightText = (text) => {
+  if (!text) return null;
+
+  // [] хаалтанд байгаа үгсийг тодруулах
+  const squareBracketRegex = /\[(.*?)\]/g;
+  let highlightedText = text.replace(
+    squareBracketRegex,
+    '<span class="inline-block bg-purple-100 text-purple-900 px-1 py-0.5 rounded text-xs font-medium border border-purple-200 mx-0.5">[$1]</span>'
+  );
+
+  // {} хаалтанд байгаа үгсийг өнгөтэй болгох
+  const curlyBracketRegex = /\{(.*?)\}/g;
+  highlightedText = highlightedText.replace(
+    curlyBracketRegex,
+    '<span class="inline-block text-blue-600 bg-blue-50 px-1 py-0.5 rounded text-xs font-medium border border-blue-200 mx-0.5">{$1}</span>'
+  );
+
+  return (
+    <div
+      dangerouslySetInnerHTML={{
+        __html: highlightedText,
+      }}
+    />
+  );
+};
 
 const SpeechToText = () => {
   const [isListening, setIsListening] = useState(false);
@@ -33,6 +64,19 @@ const SpeechToText = () => {
   const CORRECT_CODE = "0213";
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isChromeBrowser, setIsChromeBrowser] = useState(true);
+  const { user } = useAuth();
+  const [fileText, setFileText] = useState("");
+  const [fileError, setFileError] = useState(null);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
+  const [matchingWords, setMatchingWords] = useState([]);
+  const fileInputRef = useRef(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [activeResultIndex, setActiveResultIndex] = useState(-1);
+  const textContainerRef = useRef(null);
+  const [bracketWords, setBracketWords] = useState([]);
+  const [isSearchMode, setIsSearchMode] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
 
   // Browser check useEffect дотор хийх
   useEffect(() => {
@@ -175,7 +219,7 @@ const SpeechToText = () => {
         }
       } catch (e) {
         console.warn("Reconnection attempt failed:", e);
-        setError("Дахин холбогдох оролдлого амжилтгүй боллоо.");
+        setError("Дахин холбогдох оролдлого амжилт��й боллоо.");
         setIsListening(false);
       } finally {
         setIsReconnecting(false);
@@ -218,7 +262,7 @@ const SpeechToText = () => {
                 if (timeSinceLastSpeech > PAUSE_THRESHOLD) {
                   setAllTranscripts((prev) => [...prev, cleanText]);
 
-                  // Орчуулга идэвхтэй үед шууд орчуулах
+                  // Орчуулга идэвхтэй үед ууд орчуулах
                   console.log("Translation enabled:", isTranslationEnabled); // Debug log
                   if (isTranslationEnabled) {
                     console.log("Attempting to translate:", cleanText); // Debug log
@@ -249,7 +293,7 @@ const SpeechToText = () => {
             const nextRetryCount = retryCount + 1;
             setRetryCount(nextRetryCount);
             setError(
-              `Сүлжээний алдаа гарлаа. ${nextRetryCount}-р оролдлого... (${nextRetryCount}/${MAX_RETRIES})`
+              `Сүлжээний адаа гарлаа. ${nextRetryCount}-р оролдлого... (${nextRetryCount}/${MAX_RETRIES})`
             );
 
             if (reconnectTimer) {
@@ -337,7 +381,7 @@ const SpeechToText = () => {
     setConfidence(0);
   };
 
-  // Орчуулах функц нэмэх
+  // Орчуулах функц эмэх
   const handleTranslate = async () => {
     // Үлдсэн орчуулаагүй текстүүдийг олох
     const untranslatedTexts = allTranscripts.slice(allTranslations.length);
@@ -430,7 +474,7 @@ const SpeechToText = () => {
     setIsTranslationEnabled(false);
     setTranslationCode("");
     // Toast мессеж харуулах
-    showToast("Орчуулгын горимоос гарлаа", "success");
+    showToast("Орчуулгын горимоос гарла", "success");
   };
 
   // Toast компонент
@@ -543,6 +587,293 @@ const SpeechToText = () => {
     // ... бусад код
   };
 
+  // Файл боловсруулах функц
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setIsProcessingFile(true);
+    setFileError(null);
+
+    try {
+      let text = "";
+
+      // Word файл шалгах
+      if (file.name.endsWith(".docx")) {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        text = result.value;
+      }
+      // Text файл шалгах
+      else if (file.name.endsWith(".txt")) {
+        text = await file.text();
+      }
+      // PDF файл шалга
+      else if (file.name.endsWith(".pdf")) {
+        // PDF боловсруулах код
+        setFileError("PDF файл эмжигдэхгүй байна");
+        return;
+      } else {
+        setFileError("Зөвхөн .docx болон .txt файл дэмжигдэнэ");
+        return;
+      }
+
+      if (!text) {
+        setFileError("Файл хоосон байна");
+        return;
+      }
+
+      setFileText(text);
+
+      // Bracket words олох
+      const bracketMatches = text.match(/\[(.*?)\]/g) || [];
+      const uniqueBracketWords = [...new Set(bracketMatches)];
+      setBracketWords(uniqueBracketWords);
+    } catch (err) {
+      setFileError("Файл уншихад алдаа гарлаа");
+    } finally {
+      setIsProcessingFile(false);
+    }
+  };
+
+  // Текст харьцуулах функц
+  const compareTexts = (fileText, speechText) => {
+    const fileWords = fileText.toLowerCase().split(/\s+/);
+    const speechWords = speechText.toLowerCase().split(/\s+/);
+
+    const matches = speechWords.filter(
+      (word) => fileWords.includes(word) && word.length > 2
+    );
+
+    setMatchingWords(matches);
+  };
+
+  // Хаалтан доторх үгсийг олох функц
+  const extractBracketWords = (text) => {
+    if (!text) return [];
+
+    const regex = /\[(.*?)\]/g;
+    const matches = [...text.matchAll(regex)];
+    const words = matches.map((match) => match[1].trim());
+
+    console.log("Extracted words:", words); // Олдсон үгс
+    return words;
+  };
+
+  // Хайлтын функцийг дэлгэрэнгүй logging-тэй болгох
+  const searchInFile = () => {
+    // лдааг цэвэрлэх
+    setError(null);
+
+    // Оролтын утгуудыг шалгах
+    if (!fileText) {
+      setError("Файл оуулна уу");
+      return;
+    }
+
+    if (!transcript) {
+      setError("Текст бичнэ үү");
+      return;
+    }
+
+    // Хаалтан доторх үгсийг олох
+    const bracketRegex = /\[(.*?)\]/g;
+    const matches = transcript.match(bracketRegex);
+
+    if (!matches) {
+      setError("[] хаалтан дотор үг олдсонгүй");
+      return;
+    }
+
+    // Хаалтан доторх үгсийг цэвэрлэх
+    const searchWords = matches.map((match) =>
+      match.replace("[", "").replace("]", "").trim()
+    );
+
+    console.log("Хайх үгс:", searchWords); // Debug
+
+    // Файл дотроос хайх
+    const results = [];
+    const lines = fileText.split("\n");
+
+    lines.forEach((line, lineIndex) => {
+      searchWords.forEach((word) => {
+        const regex = new RegExp(word, "gi");
+        let match;
+
+        while ((match = regex.exec(line)) !== null) {
+          results.push({
+            line: lineIndex,
+            start: match.index,
+            end: match.index + word.length,
+            word: word,
+            context: line.trim(),
+          });
+        }
+      });
+    });
+
+    console.log("Хайлтын үр дүн:", results); // Debug
+
+    if (results.length > 0) {
+      setSearchResults(results);
+      setActiveResultIndex(0);
+      // Анхны үр дүн рүү скролл хийх
+      scrollToResult(0);
+    } else {
+      setError("Хайсан үг олдсонгүй");
+    }
+  };
+
+  // Тодорхой үр дүн рүү скролл хийх
+  const scrollToResult = (index) => {
+    if (!textContainerRef.current || !searchResults[index]) return;
+
+    const lineElements =
+      textContainerRef.current.querySelectorAll(".text-line");
+    const targetLine = lineElements[searchResults[index].line];
+
+    if (targetLine) {
+      targetLine.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  // Файлын текст харуулах компонент
+  const FileContent = ({ text, searchResults, activeIndex }) => {
+    const lines = text.split("\n");
+
+    return (
+      <div className="space-y-1">
+        {lines.map((line, lineIndex) => {
+          // Энэ мөрөнд байгаа хайлтын үр дүнгүүд
+          const lineResults = searchResults.filter((r) => r.line === lineIndex);
+
+          if (lineResults.length === 0) {
+            return (
+              <div key={lineIndex} className="text-line text-sm text-gray-600">
+                {line}
+              </div>
+            );
+          }
+
+          // Хайлтын үр дүнг highlight хийх
+          let lastIndex = 0;
+          const parts = [];
+
+          lineResults.forEach((result, i) => {
+            // Өмнөх текст
+            if (result.start > lastIndex) {
+              parts.push(
+                <span key={`text-${i}`}>
+                  {line.slice(lastIndex, result.start)}
+                </span>
+              );
+            }
+
+            // Олдсон үг
+            const isActive = searchResults.indexOf(result) === activeIndex;
+            parts.push(
+              <span
+                key={`highlight-${i}`}
+                className={`px-1 rounded ${
+                  isActive
+                    ? "bg-yellow-300 text-black"
+                    : "bg-yellow-100 text-black"
+                }`}
+              >
+                {line.slice(result.start, result.end)}
+              </span>
+            );
+
+            lastIndex = result.end;
+          });
+
+          // Үлдсэн текст
+          if (lastIndex < line.length) {
+            parts.push(<span key="text-end">{line.slice(lastIndex)}</span>);
+          }
+
+          return (
+            <div key={lineIndex} className="text-line text-sm text-gray-600">
+              {parts}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // [] хаалтан дахь үгсийг олох
+  const findBracketWords = (text) => {
+    const matches = text.match(/\[(.*?)\]/g) || [];
+    return matches.map((match) => match.slice(1, -1)); // [] хаалтыг хасаж авах
+  };
+
+  // Speech recognition handler дотор нэмэх
+  const handleResult = (event) => {
+    const transcript = Array.from(event.results)
+      .map((result) => result[0].transcript)
+      .join("");
+
+    setTranscript(transcript);
+
+    // Хайх горим идэвхтэй үед л хайна
+    if (isSearchMode) {
+      const bracketWords = findBracketWords(transcript);
+      if (bracketWords.length > 0) {
+        const searchWord = bracketWords[bracketWords.length - 1];
+        searchInText(searchWord);
+      }
+    }
+  };
+
+  // Хайлтын функц
+  const searchInText = (searchWord) => {
+    if (!searchWord || !textContainerRef.current) return;
+
+    const container = textContainerRef.current;
+    const text = container.textContent;
+    const results = [];
+    let index = -1;
+
+    // Хайлтын үр дүн олох
+    while (
+      (index = text
+        .toLowerCase()
+        .indexOf(searchWord.toLowerCase(), index + 1)) !== -1
+    ) {
+      results.push(index);
+    }
+
+    setSearchResults(results);
+
+    // Эхний олдсон үг рүү scroll хийх
+    if (results.length > 0) {
+      const range = document.createRange();
+      const textNode = container.firstChild;
+      range.setStart(textNode, results[0]);
+      range.setEnd(textNode, results[0] + searchWord.length);
+
+      const rect = range.getBoundingClientRect();
+      container.scrollTo({
+        top: rect.top - container.getBoundingClientRect().top - 50,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  // isSearchMode өөрчлөгдөх үе alert харуулах
+  useEffect(() => {
+    if (isSearchMode) {
+      setShowAlert(true);
+      const timer = setTimeout(() => {
+        setShowAlert(false);
+      }, 3000); // 3 секундын дараа алга болгох
+
+      return () => clearTimeout(timer); // cleanup
+    }
+  }, [isSearchMode]);
+
   return (
     <div className="w-full max-w-6xl mx-auto p-4">
       {/* Browser check message */}
@@ -574,6 +905,56 @@ const SpeechToText = () => {
         </div>
       )}
 
+      {/* File Upload Section */}
+      <Card className="mb-6 overflow-hidden border-2 border-gray-100 shadow-lg hover:shadow-xl transition-shadow">
+        <CardContent className="p-4 md:p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Файлаас текст оруулах
+            </h2>
+            <div className="flex items-center gap-4">
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2"
+                disabled={isProcessingFile}
+              >
+                <Upload className="w-4 h-4" />
+                Файл сонгох
+              </Button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept=".txt,.docx"
+                className="hidden"
+              />
+              {isProcessingFile && (
+                <div className="text-sm text-gray-500">Уншиж байна...</div>
+              )}
+              {fileError && (
+                <div className="text-sm text-red-500">{fileError}</div>
+              )}
+            </div>
+          </div>
+
+          {fileText && !fileError && (
+            <div className="mt-4 bg-white rounded-lg border shadow-sm">
+              <div className="max-h-[200px] overflow-y-auto p-4 custom-scrollbar">
+                <div className="whitespace-pre-wrap break-words text-xs leading-[1.2] text-gray-600">
+                  {highlightText(fileText)}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!user && (
+            <div className="text-sm text-gray-500 mt-2">
+              Файл оруулахын тулд нэвтэрнэ үү
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* English Speech Recognition Card */}
         <Card className="overflow-hidden border-2 border-gray-100 shadow-lg hover:shadow-xl transition-shadow">
@@ -583,31 +964,46 @@ const SpeechToText = () => {
                 Speech to Text
               </h2>
               <div className="flex gap-3 w-full sm:w-auto">
-                <Button
-                  onClick={toggleListening}
-                  className={`flex-1 sm:flex-none ${
-                    isListening
-                      ? "bg-gradient-to-r from-red-500 to-red-600"
-                      : "bg-gradient-to-r from-blue-500 to-purple-600"
-                  } text-white hover:opacity-90 transition-opacity`}
-                  disabled={!recognition}
-                >
-                  {isListening ? (
-                    <MicOff className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-                  ) : (
-                    <Mic className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-                  )}
-                  {isListening ? "Stop" : "Start"}
-                </Button>
-                {allTranscripts.length > 0 && (
-                  <Button
-                    onClick={clearAll}
-                    variant="outline"
-                    className="flex-1 sm:flex-none border-2 hover:bg-gray-50"
-                  >
-                    Clear
-                  </Button>
-                )}
+                <div className="flex flex-col gap-8">
+                  {/* Buttons Container */}
+                  <div className="flex items-center justify-center gap-4">
+                    {/* Микрофон button */}
+                    <div className="flex flex-col items-center gap-1">
+                      <Button
+                        onClick={toggleListening}
+                        className={`w-12 h-10 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105  ${
+                          isListening
+                            ? "bg-red-500 hover:bg-red-600"
+                            : "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                        }`}
+                      >
+                        {isListening ? (
+                          <MicOff className="w-10 h-10 text-white" />
+                        ) : (
+                          <Mic className="w-10 h-10 text-white" />
+                        )}
+                      </Button>
+                    </div>
+
+                    {/* Хайх горим button */}
+                    <div className="flex flex-col items-center gap-1">
+                      <Button
+                        onClick={() => setIsSearchMode(!isSearchMode)}
+                        className={`w-12 h-10 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 ${
+                          isSearchMode
+                            ? "bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
+                            : "bg-white border border-gray-200 hover:border-purple-300"
+                        }`}
+                      >
+                        <Search
+                          className={`w-6 h-6 ${
+                            isSearchMode ? "text-white" : "text-gray-600"
+                          }`}
+                        />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -617,43 +1013,33 @@ const SpeechToText = () => {
               </div>
             )}
 
-            <div className="min-h-[300px] p-4 bg-gray-50 rounded-lg overflow-y-auto shadow-inner">
+            <div
+              ref={textContainerRef}
+              className="min-h-[300px] p-4 bg-gray-50 rounded-lg overflow-y-auto shadow-inner relative"
+            >
               {allTranscripts.map((text, index) => (
                 <div
                   key={index}
                   className="mb-3 text-base md:text-lg leading-relaxed text-black font-medium"
                 >
-                  {text}
+                  {highlightText(text)}
                 </div>
               ))}
+              {/* Interim transcript */}
               {interimTranscript && (
-                <div className="relative">
-                  <div className="text-base md:text-lg text-gray-400 italic opacity-60 break-words">
-                    {interimTranscript}
-                  </div>
-                  <div className="absolute right-0 bottom-0 flex items-center text-gray-400 text-sm">
-                    <span className="mr-2">Бичиж байна</span>
-                    <div className="flex space-x-1">
-                      <div
-                        className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: "0ms" }}
-                      ></div>
-                      <div
-                        className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: "150ms" }}
-                      ></div>
-                      <div
-                        className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: "300ms" }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
+                <div className="text-gray-400 italic">{interimTranscript}</div>
               )}
+              {/* Empty state */}
               {allTranscripts.length === 0 && !interimTranscript && (
                 <div className="flex flex-col items-center justify-center h-full text-gray-500">
                   <Mic className="w-8 h-8 mb-2 opacity-50" />
                   <p>Start speaking...</p>
+                </div>
+              )}
+              {/* Хайлтын үр дүн тоолуур */}
+              {searchResults.length > 0 && (
+                <div className="absolute top-2 right-2 px-2 py-1 bg-purple-100 text-purple-700 rounded text-sm font-medium">
+                  {searchResults.length} илэрц
                 </div>
               )}
             </div>
@@ -762,6 +1148,62 @@ const SpeechToText = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
+
+      {/* <div className="mt-4 p-4 bg-white rounded-lg border min-h-[200px]">
+        {transcript && highlightText(transcript)}
+      </div> */}
+
+      <div className="mt-4 text-sm text-gray-600">
+        <h5>Тект оруулахдаа</h5>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>
+            <span className="bg-purple-100 text-purple-800 px-1 rounded font-medium">
+              [үг]
+            </span>{" "}
+            - Дараах байдлаар харагдана
+          </li>
+          <li>
+            <span className="text-blue-600 font-medium">{"{үг}"}</span> - Дараах
+            байдлаар харагдана
+          </li>
+        </ul>
+      </div>
+
+      {/* Хайлтын үр дүнгийн тоог харуулах */}
+      {searchResults.length > 0 && (
+        <div className="mt-2 text-sm text-gray-600">
+          {searchResults.length} илэрц олдлоо
+        </div>
+      )}
+
+      {/* Хайх горим идэвхтэй үед заавар харуулах */}
+
+      {/* Хайлтын үр дүн */}
+      {isSearchMode && searchResults.length > 0 && (
+        <div className="mt-2 flex items-center gap-2 text-sm">
+          <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-md font-medium">
+            {searchResults.length} илэрц
+          </span>
+          <button
+            onClick={() => setSearchResults([])}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            Цэвэрлэх
+          </button>
+        </div>
+      )}
+
+      {isSearchMode && showAlert && (
+        <div
+          role="alert"
+          className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-auto max-w-[90%] p-3 bg-purple-50 border border-purple-200 rounded-lg flex items-center gap-2 shadow-md animate-slideDown"
+        >
+          <Info className="h-4 w-4 shrink-0 text-purple-600" />
+          <p className="text-sm text-purple-700">
+            Хайх үгийг [ ] хаалтанд хэлнэ. Жишээ нь: [hello]
+          </p>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,24 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { X, Home, BookOpen, Info } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const MobileMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const pathname = usePathname();
+
+  const handleLinkClick = () => {
+    setIsOpen(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isOpen && !event.target.closest(".mobile-menu-container")) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
+  useEffect(() => {
+    setIsOpen(false);
+  }, [pathname]);
 
   return (
-    <div className="md:hidden">
+    <div className="md:hidden fixed top-0 right-0 z-50 mobile-menu-container">
       {/* Hamburger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+        className="p-3 hover:bg-gray-100 transition-colors rounded-lg m-2"
+        aria-label="Menu"
       >
         {isOpen ? (
-          <X className="h-6 w-6" />
+          <X className="h-6 w-6 text-gray-700" />
         ) : (
           <svg
-            className="h-6 w-6"
+            className="h-6 w-6 text-gray-700"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -40,28 +63,46 @@ const MobileMenu = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="absolute top-16 left-0 right-0 bg-white dark:bg-gray-900 border-b dark:border-gray-700 shadow-lg"
+            className="absolute top-full right-0 w-64 bg-white shadow-lg rounded-lg border mt-2 mr-2"
           >
-            <nav className="container mx-auto px-4 py-4">
-              <div className="flex flex-col space-y-4">
-                <a
-                  href="#"
-                  className="text-gray-700 dark:text-gray-200 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+            <nav className="py-2">
+              <div className="flex flex-col">
+                <Link
+                  href="/"
+                  className={`flex items-center gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 ${
+                    pathname === "/"
+                      ? "text-purple-600 bg-purple-50"
+                      : "text-gray-700"
+                  }`}
+                  onClick={handleLinkClick}
                 >
+                  <Home className="h-5 w-5" />
                   Нүүр
-                </a>
-                <a
-                  href="#"
-                  className="text-gray-700 dark:text-gray-200 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                </Link>
+                <Link
+                  href="/guide"
+                  className={`flex items-center gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 ${
+                    pathname === "/guide"
+                      ? "text-purple-600 bg-purple-50"
+                      : "text-gray-700"
+                  }`}
+                  onClick={handleLinkClick}
                 >
+                  <BookOpen className="h-5 w-5" />
                   Заавар
-                </a>
-                <a
-                  href="#"
-                  className="text-gray-700 dark:text-gray-200 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                </Link>
+                <Link
+                  href="/about"
+                  className={`flex items-center gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 ${
+                    pathname === "/about"
+                      ? "text-purple-600 bg-purple-50"
+                      : "text-gray-700"
+                  }`}
+                  onClick={handleLinkClick}
                 >
+                  <Info className="h-5 w-5" />
                   Тухай
-                </a>
+                </Link>
               </div>
             </nav>
           </motion.div>
