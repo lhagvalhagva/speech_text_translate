@@ -89,7 +89,9 @@ const SpeechToText = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isChromeBrowser, setIsChromeBrowser] = useState(true);
   const { user } = useAuth();
-  const [fileText, setFileText] = useState("");
+  const [fileText, setFileText] = useState(
+    "Энд таны оруулсан файлын агуулга харагдана...\n\nТа дараах зүйлсийг хийх боломжтой: \n• [],{} Хаалт өөр өөр өнгөөр харагдана\n [What is your name?]\n {My name is ...}"
+  );
   const [fileError, setFileError] = useState(null);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [matchingWords, setMatchingWords] = useState([]);
@@ -474,7 +476,7 @@ const SpeechToText = () => {
         <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
         </svg>
-        <span class="font-medium">Буруу код! Дахин оролдоно уу.</span>
+        <span class="font-medium">Буруу код! Дахи�� оролдоно уу.</span>
       `;
       document.body.appendChild(errorMessage);
 
@@ -699,7 +701,7 @@ const SpeechToText = () => {
     const matches = [...text.matchAll(regex)];
     const words = matches.map((match) => match[1].trim());
 
-    console.log("Extracted words:", words); // Олдсон үгс
+    console.log("Extracted words:", words); // Олдсон гс
     return words;
   };
 
@@ -831,7 +833,7 @@ const SpeechToText = () => {
             lastIndex = result.end;
           });
 
-          // Үлдсэн тек��т
+          // Үлдсэн тект
           if (lastIndex < line.length) {
             parts.push(<span key="text-end">{line.slice(lastIndex)}</span>);
           }
@@ -1403,7 +1405,7 @@ const SpeechToText = () => {
         {transcript && highlightText(transcript)}
       </div> */}
 
-      <div className="mt-4 text-sm text-gray-600">
+      {/* <div className="mt-4 text-sm text-gray-600">
         <h5>Тект оруулахдаа</h5>
         <ul className="list-disc pl-5 space-y-1">
           <li>
@@ -1417,9 +1419,8 @@ const SpeechToText = () => {
             байдлаар харагдана
           </li>
         </ul>
-      </div>
+      </div> */}
 
-      {/* Хайлтын үр дүнгийн тоог харуулах */}
       {searchResults.length > 0 && (
         <div className="mt-2 text-sm text-gray-600">
           {searchResults.length} илэрц олдлоо
