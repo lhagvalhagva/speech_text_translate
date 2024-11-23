@@ -6,6 +6,8 @@ import { AuthProvider } from "./components/auth/AuthProvider";
 import Header from "./components/Header";
 import { Toaster } from "./components/ui/toaster";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { CookieConsent } from "./components/CookieConsent";
+import { GoogleAnalytics } from "./components/GoogleAnalytics";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -85,6 +87,8 @@ export default function RootLayout({ children }) {
             <main className="min-h-screen">{children}</main>
             <Toaster />
             <SpeedInsights />
+            <CookieConsent />
+            <GoogleAnalytics />
           </AuthProvider>
         </Providers>
       </body>

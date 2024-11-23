@@ -37,45 +37,72 @@ export default function GuidePage() {
                   <FileText className="h-4 w-4 text-blue-500" />
                   2. Таны ярьсан үг шууд текст болж гарч ирнэ
                 </p>
-                <p className="flex items-center gap-2">
-                  <FileSearch className="h-4 w-4 text-blue-500" />
-                  3. Хэрэв файлтай харьцуулах бол:
-                </p>
-                <ul className="list-none pl-6 space-y-2">
-                  <li className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-gray-400" />
-                    Файл оруулах товчийг дарж .docx эсвэл .txt файл оруулна
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Brackets className="h-4 w-4 text-gray-400" />
-                    Яриандаа [] хаалт ашиглан хайх үгсээ тэмдэглэнэ
-                  </li>
-                </ul>
-                <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                  <p className="font-medium text-gray-700">Жишээ:</p>
-                  <p>
-                    "Энэ{" "}
-                    <span className="bg-purple-100 text-purple-800 px-1 rounded font-medium">
-                      [алим]
-                    </span>{" "}
-                    бол
-                    <span className="text-blue-600 font-medium">
-                      {" {улаан} "}
-                    </span>{" "}
-                    өнгөтэй
-                    <span className="bg-purple-100 text-purple-800 px-1 rounded font-medium">
-                      [жимс]
-                    </span>{" "}
-                    юм."
-                  </p>
-                  <ul className="text-sm text-gray-600 mt-2">
-                    <li>• [алим], [жимс] - хайх үгс</li>
-                    <li>• {"{улаан}"} - тэмдэглэл</li>
+              </div>
+            </section>
+            <section className="space-y-4">
+              <h2 className="text-2xl font-semibold text-gray-800 flex items-center gap-2">
+                <FileText className="h-6 w-6 text-purple-600" />
+                Файлын формат
+              </h2>
+              <div className="space-y-4">
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                  <h3 className="font-medium text-blue-800 mb-2">
+                    Файл бүтэц:
+                  </h3>
+                  <ul className="space-y-2 text-sm text-blue-700">
+                    <li className="flex items-start gap-2">
+                      <span className="font-mono bg-blue-100 px-1 rounded">
+                        [ ]
+                      </span>
+                      <span>Асуултыг [ ] хаалтад бичнэ</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="font-mono bg-blue-100 px-1 rounded">
+                        {}
+                      </span>
+                      <span>Хариултыг {} хаалтад бичнэ</span>
+                    </li>
+                  </ul>
+
+                  <div className="mt-4 p-3 bg-white rounded border border-blue-100">
+                    <p className="text-gray-600 text-sm font-medium mb-2">
+                      Жишээ:
+                    </p>
+                    <pre className="text-xs text-gray-600 whitespace-pre-wrap">
+                      [What's your name?]
+                      {`{Hello, my name is Name. I chose this name because my parents were inspired by its meaning}`}
+                      [Why do you want to participate in Work and Travel?]
+                      {`{I want to participate because...}`}
+                    </pre>
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    <h4 className="font-medium text-blue-800">
+                      Анхаарах зүйлс:
+                    </h4>
+                    <ul className="list-disc pl-5 text-sm text-blue-700 space-y-1">
+                      <li>Асуулт бүрийг [ ] хаалтад бичих</li>
+                      <li>Хариулт бүрийг {} хаалтад бичих</li>
+                      <li>Асуулт, хариулт хоорондоо шинэ мөрөнд бичих</li>
+                      <li>Зөвхөн .txt эсвэл .docx файл оруулах</li>
+                      <li>Файлын хэмжээ 5MB-с бага байх</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+                  <h4 className="font-medium text-yellow-800 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    Чухал
+                  </h4>
+                  <ul className="mt-2 space-y-2 text-sm text-yellow-700">
+                    <li>• Файлын формат буруу байвал системд хүлээн авахгүй</li>
+                    <li>• Асуулт, хариулт хоорондын холбоо алдагдахгүй байх</li>
+                    <li>• Хаалтуудыг [] {} зөв хэрэглэх</li>
                   </ul>
                 </div>
               </div>
             </section>
-
             <section className="space-y-4">
               <h2 className="text-2xl font-semibold text-gray-800 flex items-center gap-2">
                 <AlertCircle className="h-6 w-6 text-purple-600" />
