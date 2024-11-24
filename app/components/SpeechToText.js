@@ -39,7 +39,7 @@ import { getPalmResponse } from "../lib/palm-ai";
 const highlightText = (text) => {
   if (!text) return null;
 
-  // [] хаалтанд ба��гаа үгсийг тодруулах
+  // [] хаалтанд багаа үгсийг тодруулах
   const squareBracketRegex = /\[(.*?)\]/g;
   let highlightedText = text.replace(
     squareBracketRegex,
@@ -520,7 +520,7 @@ const SpeechToText = () => {
         }, 500);
       }, 3000);
     } else {
-      // Буруу код оруулса үе улаан өнгөтэй alert
+      // Буруу од оруулса үе улаан өнгөтэй alert
       const errorMessage = document.createElement("div");
       errorMessage.className =
         "fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg transition-opacity duration-500 flex items-center";
@@ -1203,12 +1203,6 @@ const SpeechToText = () => {
     setAiError(null);
 
     try {
-      console.log("\n=== AI Request Start ===");
-      console.log("Sending request:", {
-        question,
-        userId: user.uid,
-      });
-
       const response = await fetch("/api/ai", {
         method: "POST",
         headers: {
@@ -1220,34 +1214,29 @@ const SpeechToText = () => {
         }),
       });
 
-      console.log("Response status:", response.status);
-
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Error response:", errorData);
+        const errorData = await response.json().catch(() => ({
+          error: `HTTP error! status: ${response.status}`,
+        }));
         throw new Error(errorData.error || "AI хариулт авахад алдаа гарлаа");
       }
 
-      const data = await response.json();
-      console.log("AI Response data:", {
-        responseLength: data.response?.length,
-        responsePreview: data.response?.substring(0, 100),
+      const data = await response.json().catch(() => {
+        throw new Error("Invalid JSON response");
       });
 
-      if (data.response) {
-        setAiResponse(data.response);
-        toast({
-          title: "AI Хариулт бэлэн",
-          description: "Асуултад хариулт өглөө",
-          className: "bg-green-50 text-green-900 border-green-200",
-        });
-      } else {
+      if (!data || !data.response) {
         throw new Error("AI хариулт хоосон байна");
       }
 
-      console.log("=== AI Request End ===\n");
+      setAiResponse(data.response);
+      toast({
+        title: "AI Хариулт бэлэн",
+        description: "Асуултад хариулт өглөө",
+        className: "bg-green-50 text-green-900 border-green-200",
+      });
     } catch (error) {
-      console.error("\nAI Request Error:", error);
+      console.error("AI Request Error:", error);
       setAiError(error.message);
       toast({
         title: "AI Алдаа",
@@ -1294,12 +1283,22 @@ const SpeechToText = () => {
       {showGuideAlert && (
         <div
           role="alert"
-          className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-auto max-w-[90%] p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3 shadow-md animate-slideDown"
+          className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 
+          w-[95%] sm:w-auto sm:max-w-[90%] // Утсан дээр өргөнийг тохируулах
+          p-3 sm:p-4 // Padding-ийг багасгах
+          bg-blue-50 border border-blue-200 rounded-lg 
+          flex flex-col sm:flex-row items-start sm:items-center // Утсан дээр босоо байрлал
+          gap-2 sm:gap-3 
+          shadow-md animate-slideDown
+          mx-2 sm:mx-0" // Захын зай нэмэх
         >
-          <Info className="h-5 w-5 shrink-0 text-blue-600" />
-          <div>
-            <p className="text-sm font-medium text-blue-900">Анхааруулга</p>
-            <p className="text-sm text-blue-700">
+          <Info className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-blue-600 mt-0.5 sm:mt-0" />
+          <div className="flex-1 min-w-0">
+            {" "}
+            <p className="text-xs sm:text-sm font-medium text-blue-900">
+              Анхааруулга
+            </p>
+            <p className="text-xs sm:text-sm text-blue-700 break-words">
               Системийг хэрхэн ашиглах талаар{" "}
               <Link
                 href="/guide"
@@ -1312,9 +1311,11 @@ const SpeechToText = () => {
           </div>
           <button
             onClick={() => setShowGuideAlert(false)}
-            className="shrink-0 ml-auto p-1 hover:bg-blue-100 rounded-full text-blue-500"
+            className="absolute top-2 right-2 sm:relative sm:top-auto sm:right-auto
+            shrink-0 sm:ml-auto p-1 
+            hover:bg-blue-100 rounded-full text-blue-500"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3 w-3 sm:h-4 sm:w-4" />
           </button>
         </div>
       )}
