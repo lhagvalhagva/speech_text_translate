@@ -1284,7 +1284,7 @@ const SpeechToText = () => {
             </svg>
             <div>
               <p className="text-sm text-yellow-700 font-medium">
-                Анхааруулга: Энэ апп зөвхөн Google Chrome browser дээр бү��эн
+                Анхааруулга: Энэ апп зөвхөн Google Chrome browser дээр бүрэн
                 ажиллах боломжтой.
               </p>
               <p className="text-xs text-yellow-600 mt-1">
