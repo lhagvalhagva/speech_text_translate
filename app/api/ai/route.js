@@ -12,6 +12,9 @@ export async function OPTIONS(request) {
   });
 }
 
+export const runtime = "edge"; // Optional: Use edge runtime
+export const dynamic = "force-dynamic"; // Ensure dynamic handling
+
 export async function POST(request) {
   // CORS headers нэмэх
   const headers = {
