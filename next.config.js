@@ -2,12 +2,8 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  output: "export",
   images: {
     unoptimized: true,
-  },
-  experimental: {
-    runtime: "edge",
   },
   async headers() {
     return [

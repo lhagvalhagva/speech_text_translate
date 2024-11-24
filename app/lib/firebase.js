@@ -29,17 +29,20 @@ export const db = initializeFirestore(app, {
     cacheSizeBytes: CACHE_SIZE_UNLIMITED,
     tabManager: persistentSingleTabManager(),
   }),
+  experimentalForceLongPolling: true,
 });
 
 // Enable offline persistence
 try {
-  enableIndexedDbPersistence(db);
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === "failed-precondition") {
+      // Multiple tabs open, persistence can only be enabled in one tab at a time.
+      console.log("Persistence unavailable - multiple tabs may be open");
+    } else if (err.code === "unimplemented") {
+      // The current browser doesn't support persistence
+      console.log("Persistence not supported by browser");
+    }
+  });
 } catch (err) {
-  if (err.code === "failed-precondition") {
-    // Multiple tabs open, persistence can only be enabled in one tab at a time.
-    console.log("Persistence failed: Multiple tabs open");
-  } else if (err.code === "unimplemented") {
-    // The current browser doesn't support persistence
-    console.log("Persistence not supported");
-  }
+  console.log("Error enabling persistence:", err);
 }
