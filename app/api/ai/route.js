@@ -12,8 +12,10 @@ export async function OPTIONS(request) {
   });
 }
 
-export const runtime = "edge"; // Optional: Use edge runtime
-export const dynamic = "force-dynamic"; // Ensure dynamic handling
+export const config = {
+  runtime: "edge",
+  regions: ["iad1"], // Optionally specify regions
+};
 
 export async function POST(request) {
   // CORS headers нэмэх

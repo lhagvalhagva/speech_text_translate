@@ -1,13 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: true,
+  swcMinify: true,
   output: "export",
   images: {
     unoptimized: true,
   },
+  experimental: {
+    runtime: "edge",
+  },
   async headers() {
     return [
       {
-        // API routes-д CORS зөвшөөрөх
         source: "/api/:path*",
         headers: [
           { key: "Access-Control-Allow-Credentials", value: "true" },
