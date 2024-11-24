@@ -3,17 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import {
-  Mic,
-  MicOff,
-  Upload,
-  Search,
-  Info,
-  MessageCircle,
-  Bot,
-  User,
-  Loader2,
-} from "lucide-react";
+import { Mic, MicOff, Upload, Search, Info, Trash2 } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import { db } from "../lib/firebase";
 import {
@@ -29,6 +19,7 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "./auth/AuthProvider";
 import mammoth from "mammoth";
+import { Alert, AlertDescription } from "./ui/alert";
 import { useToast } from "./ui/use-toast";
 import { cn } from "../lib/utils";
 import {
@@ -43,40 +34,12 @@ import {
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
 import defaultText from "./default";
-import Script from "next/script";
-
-const GA_MEASUREMENT_ID = "G-1Q32RL1BNT"; // Your GA4 Measurement ID
-
-const GoogleAnalytics = () => {
-  return (
-    <>
-      <Script
-        strategy="afterInteractive"
-        src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-      />
-      <Script
-        id="google-analytics"
-        strategy="afterInteractive"
-        dangerouslySetInnerHTML={{
-          __html: `
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', '${GA_MEASUREMENT_ID}', {
-              page_path: window.location.pathname,
-              cookie_flags: 'SameSite=None;Secure'
-            });
-          `,
-        }}
-      />
-    </>
-  );
-};
+import { getPalmResponse } from "../lib/palm-ai";
 
 const highlightText = (text) => {
   if (!text) return null;
 
-  // [] хаалтанд байгаа үгсийг тодруулах
+  // [] хаалтанд ба��гаа үгсийг тодруулах
   const squareBracketRegex = /\[(.*?)\]/g;
   let highlightedText = text.replace(
     squareBracketRegex,
@@ -99,102 +62,6 @@ const highlightText = (text) => {
   );
 };
 
-const AIMessage = ({ message, type }) => {
-  return (
-    <div
-      className={`flex gap-3 ${
-        type === "user" ? "justify-end" : "justify-start"
-      } mb-4`}
-    >
-      {type === "ai" && (
-        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center flex-shrink-0">
-          <Bot className="w-4 h-4 text-white" />
-        </div>
-      )}
-
-      <div
-        className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-          type === "user"
-            ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white"
-            : "bg-gray-100 text-gray-800"
-        }`}
-      >
-        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message}</p>
-      </div>
-
-      {type === "user" && (
-        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-          <User className="w-4 h-4 text-gray-600" />
-        </div>
-      )}
-    </div>
-  );
-};
-
-const AIResponseCard = ({
-  transcript,
-  aiResponse,
-  isProcessingAI,
-  setAiResponse,
-}) => {
-  return (
-    <Card className="mt-6 overflow-hidden border-2 border-gray-100 shadow-lg hover:shadow-xl transition-shadow">
-      <CardContent className="p-4 md:p-6">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-2">
-            <MessageCircle className="w-5 h-5 text-purple-500" />
-            <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              AI Assistant
-            </h2>
-          </div>
-          {isProcessingAI && (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              AI боловсруулж байна...
-            </div>
-          )}
-        </div>
-
-        <div className="min-h-[300px] max-h-[500px] overflow-y-auto p-4 bg-white rounded-lg shadow-inner">
-          {transcript && <AIMessage message={transcript} type="user" />}
-
-          {isProcessingAI && (
-            <div className="flex gap-2 items-center text-gray-400 mb-4">
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100" />
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200" />
-            </div>
-          )}
-
-          {aiResponse && <AIMessage message={aiResponse} type="ai" />}
-
-          {!transcript && !aiResponse && !isProcessingAI && (
-            <div className="flex flex-col items-center justify-center h-[300px] text-gray-500">
-              <Bot className="w-12 h-12 mb-3 text-gray-400" />
-              <p className="text-center">
-                Та ярьж эхлэхэд AI туслах хариу өгнө
-              </p>
-            </div>
-          )}
-        </div>
-
-        {aiResponse && (
-          <div className="mt-4 flex justify-end gap-2">
-            <Button
-              onClick={() => setAiResponse("")}
-              variant="outline"
-              size="sm"
-              className="text-gray-500 hover:text-gray-700"
-            >
-              Арилгах
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
-
 const SpeechToText = () => {
   const { toast } = useToast();
   const [isListening, setIsListening] = useState(false);
@@ -212,7 +79,6 @@ const SpeechToText = () => {
   const [translationError, setTranslationError] = useState(null);
   const [dailyLimit, setDailyLimit] = useState(5000);
   const [usedWords, setUsedWords] = useState(0);
-  const [transcriptLines, setTranscriptLines] = useState([]);
   const PAUSE_THRESHOLD = 2000; // 2 секундийн дараа шинэ мөр эхлэх
   const [lastSpeechTime, setLastSpeechTime] = useState(Date.now());
   const [allTranscripts, setAllTranscripts] = useState([]);
@@ -228,7 +94,10 @@ const SpeechToText = () => {
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [matchingWords, setMatchingWords] = useState([]);
   const fileInputRef = useRef(null);
+  const [searchResults, setSearchResults] = useState([]);
+  const [activeResultIndex, setActiveResultIndex] = useState(-1);
   const textContainerRef = useRef(null);
+  const [bracketWords, setBracketWords] = useState([]);
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [savedFiles, setSavedFiles] = useState([]);
@@ -236,14 +105,13 @@ const SpeechToText = () => {
   const [isOffline, setIsOffline] = useState(false);
   const maxRetries = 3;
   const retryDelay = 2000; // 2 seconds
-  const [aiResponse, setAiResponse] = useState("");
   const [isProcessingAI, setIsProcessingAI] = useState(false);
+  const [aiResponse, setAiResponse] = useState("");
+  const [aiError, setAiError] = useState(null);
 
   const handleClearText = () => {
     setTranscript("");
-    setAllTranscripts([]);
-    setInterimTranscript("");
-
+    setTranslation("");
     toast({
       description: "Текст амжилттай устгагдлаа",
     });
@@ -260,13 +128,11 @@ const SpeechToText = () => {
 
   useEffect(() => {
     // Page view бүртгэх
-    if (typeof window !== "undefined" && window.gtag) {
-      window.gtag("event", "page_view", {
-        page_title: "Speech to Text",
-        page_location: window.location.href,
-        page_path: window.location.pathname,
-      });
-    }
+    window.gtag("event", "page_view", {
+      page_title: "Speech to Text",
+      page_location: window.location.href,
+      page_path: window.location.pathname,
+    });
   }, []);
 
   // Network status monitoring
@@ -347,17 +213,23 @@ const SpeechToText = () => {
   };
 
   // Сайжруулсан translateText функц
-  const translateText = async (text) => {
+  const translateText = async (text, retryCount = 0) => {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 1000; // 1 second
+
     try {
-      // Хоосон текст шалгах
       if (!text.trim()) return "";
 
       // Үгийн тоо шалгах
       const wordCount = countWords(text);
       if (usedWords + wordCount > dailyLimit) {
-        setTranslationError("Өдрийн үгийн хязгаар хэтэрсэн байна.");
+        setTranslationError("Өдрийн үгийн хязгаар хэтээн байна.");
         return "";
       }
+
+      // Timeout-тэй fetch хийх
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
       const response = await fetch("/api/translate", {
         method: "POST",
@@ -367,7 +239,10 @@ const SpeechToText = () => {
         body: JSON.stringify({
           text: text.trim(),
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeout);
 
       if (!response.ok) {
         throw new Error(`Translation failed with status: ${response.status}`);
@@ -379,12 +254,37 @@ const SpeechToText = () => {
         throw new Error(data.error);
       }
 
-      // Амжилттай орчуулсны дараа үгийн тоог нэмэх
       setUsedWords((prev) => prev + wordCount);
-
       return data.translation || "";
     } catch (error) {
       console.warn("Translation error:", error);
+
+      // Retry logic
+      if (
+        error.name === "AbortError" ||
+        error.message.includes("failed") ||
+        error.message.includes("network")
+      ) {
+        if (retryCount < MAX_RETRIES) {
+          console.log(
+            `Retrying translation... Attempt ${retryCount + 1}/${MAX_RETRIES}`
+          );
+
+          // Show retry message
+          setTranslationError(
+            `Орчуулга амжилтгүй. Дахин оролдож байна... (${
+              retryCount + 1
+            }/${MAX_RETRIES})`
+          );
+
+          // Wait before retrying
+          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+
+          // Recursive retry
+          return translateText(text, retryCount + 1);
+        }
+      }
+
       setTranslationError(`Орчуулгын алдаа: ${error.message}`);
       return "";
     }
@@ -393,26 +293,34 @@ const SpeechToText = () => {
   useEffect(() => {
     let recognitionInstance = null;
 
+    const handleReconnect = async (instance) => {
+      try {
+        setIsReconnecting(true);
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        if (instance) {
+          instance.stop();
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await instance.start();
+        }
+      } catch (e) {
+        console.warn("Reconnection attempt failed:", e);
+        setError("Дахин холбогдох оролдлого амжилтй боллоо.");
+        setIsListening(false);
+      } finally {
+        setIsReconnecting(false);
+      }
+    };
+
     const initializeRecognition = () => {
       try {
-        if (
-          !("SpeechRecognition" in window) &&
-          !("webkitSpeechRecognition" in window)
-        ) {
-          setError("Таны browser speech recognition-г дэмжихгүй байна.");
-          return null;
-        }
+        const instance = new (window.SpeechRecognition ||
+          window.webkitSpeechRecognition)();
 
-        const SpeechRecognition =
-          window.SpeechRecognition || window.webkitSpeechRecognition;
-        const instance = new SpeechRecognition();
-
-        // Configure recognition settings
         instance.continuous = true;
         instance.interimResults = true;
         instance.lang = "en-US";
 
-        // Handle results
         instance.onresult = async (event) => {
           const now = Date.now();
           const timeSinceLastSpeech = now - lastSpeechTime;
@@ -439,17 +347,18 @@ const SpeechToText = () => {
 
                 if (timeSinceLastSpeech > PAUSE_THRESHOLD) {
                   setAllTranscripts((prev) => [...prev, cleanText]);
-                  setTranscript(cleanText);
 
                   // Орчуулга идэвхтэй үед орчуулах
                   if (isTranslationEnabled) {
-                    const translation = await translateText(cleanText);
-                    if (translation) {
-                      setAllTranslations((prev) => [...prev, translation]);
+                    const translatedText = await translateText(cleanText);
+                    if (translatedText) {
+                      setAllTranslations((prev) => [...prev, translatedText]);
                     }
-                  } else {
-                    // AI боловсруулалт хийх
-                    await processWithAI(cleanText);
+                  }
+
+                  // Шууд AI хариулт авах
+                  if (cleanText) {
+                    getAIResponse(cleanText);
                   }
                 }
               }
@@ -460,73 +369,75 @@ const SpeechToText = () => {
           setInterimTranscript(currentInterim);
         };
 
-        instance.onerror = (event) => {
-          console.warn("Speech Recognition Error:", event.error);
+        instance.onerror = async (event) => {
+          console.warn("Speech Recognition Status:", event.error);
 
-          switch (event.error) {
-            case "aborted":
-              // Don't show error for normal aborts
-              if (isListening) {
-                setError("Таних үйл явц тасалдлаа. Дахин эхлүүлж байна...");
-                restartRecognition(instance);
-              }
-              break;
-            case "network":
-              setError(
-                "Сүлжээний алдаа гарлаа. Таны интернэт холболтыг шалгана уу."
-              );
-              break;
-            case "not-allowed":
-            case "permission-denied":
-              setError("Микрофон ашиглах зөвшөөрөл өгөөгүй байна.");
-              setIsListening(false);
-              break;
-            case "no-speech":
-              setError("Ямар нэгэн дуу сонсогдсонгүй");
-              break;
-            case "audio-capture":
-              setError("Микрофон олдсонгүй. Микрофоноо шалгана уу.");
-              setIsListening(false);
-              break;
-            default:
-              setError(`Алдаа гарлаа: ${event.error}`);
-              setIsListening(false);
+          if (event.error === "no-speech") {
+            setError("No speech detected. Please speak more clearly.");
+            return;
+          }
+
+          if (event.error === "network" && retryCount < MAX_RETRIES) {
+            const nextRetryCount = retryCount + 1;
+            setRetryCount(nextRetryCount);
+            setError(
+              `Сүлжээний адаа гарлаа. ${nextRetryCount}-р оролдлого... (${nextRetryCount}/${MAX_RETRIES})`
+            );
+
+            if (reconnectTimer) {
+              clearTimeout(reconnectTimer);
+            }
+
+            const timer = setTimeout(() => handleReconnect(instance), 1000);
+            setReconnectTimer(timer);
+          } else {
+            switch (event.error) {
+              case "network":
+                setError(
+                  `Сүлжээний алдаа гарлаа. Таны интернэт холболтыг шалгана уу. (${MAX_RETRIES}/${MAX_RETRIES} оролдлого дууссан)`
+                );
+                break;
+              case "not-allowed":
+              case "permission-denied":
+                setError("Микрофон ашиглах зөвшөөрөл өгөөгүй байна.");
+                break;
+              case "no-speech":
+                setError("Ямар нэгэн ду сонсогдсонгүй");
+                break;
+              case "audio-capture":
+                setError("Микрофон лдсонгүй. Микрофоноо шалгана уу.");
+                break;
+              default:
+                setError(`Алдаа гарлаа: ${event.error}`);
+            }
+            setIsListening(false);
           }
         };
 
-        // Handle end event with automatic restart if still listening
         instance.onend = () => {
           if (isListening && !isReconnecting) {
-            restartRecognition(instance);
+            try {
+              // Add delay and check state before restarting
+              setTimeout(() => {
+                if (isListening && !isReconnecting) {
+                  instance.start();
+                }
+              }, 250);
+            } catch (e) {
+              console.warn("Failed to restart recognition:", e);
+              setIsListening(false);
+            }
           }
         };
 
         return instance;
       } catch (err) {
-        console.error("Speech Recognition initialization failed:", err);
+        console.warn("Speech Recognition initialization failed:", err);
         setError("Speech Recognition initialization failed: " + err.message);
         return null;
       }
     };
 
-    // Helper function to restart recognition
-    const restartRecognition = async (instance) => {
-      try {
-        if (instance && isListening && !isReconnecting) {
-          // Add small delay before restarting
-          await new Promise((resolve) => setTimeout(resolve, 300));
-          await instance.start();
-        }
-      } catch (err) {
-        console.warn("Failed to restart recognition:", err);
-        if (err.message !== "recognition has already started") {
-          setError("Дахин эхлүүлэхэд алдаа гарлаа");
-          setIsListening(false);
-        }
-      }
-    };
-
-    // Initialize recognition
     const initRecognition = () => {
       recognitionInstance = initializeRecognition();
       setRecognition(recognitionInstance);
@@ -534,8 +445,10 @@ const SpeechToText = () => {
 
     initRecognition();
 
-    // Cleanup
     return () => {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+      }
       if (recognitionInstance) {
         try {
           recognitionInstance.stop();
@@ -545,7 +458,7 @@ const SpeechToText = () => {
         }
       }
     };
-  }, [isTranslationEnabled, isListening, isReconnecting, lastSpeechTime]);
+  }, [isTranslationEnabled]);
 
   // Clear функцийг шинэчлэх
   const clearAll = () => {
@@ -606,7 +519,7 @@ const SpeechToText = () => {
         <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
         </svg>
-        <span class="font-medium">Буруу код! Дахи ородоно уу.</span>
+        <span class="font-medium">Буруу код! Дахи оролдоно уу.</span>
       `;
       document.body.appendChild(errorMessage);
 
@@ -648,8 +561,34 @@ const SpeechToText = () => {
   const handleDisableTranslation = () => {
     setIsTranslationEnabled(false);
     setTranslationCode("");
+
     // Toast мессеж харуулах
-    showToast("Орчуулгын горимоос гарла", "success");
+    toast({
+      title: "Мэдэгдэл",
+      description: "Орчуулгын горимоос гарлаа",
+      variant: "default",
+      className: "bg-blue-50 text-blue-900 border-blue-200",
+    });
+  };
+
+  // Алдааны үед харуулах toast
+  const showErrorToast = (message) => {
+    toast({
+      title: "Алдаа!",
+      description: message,
+      variant: "destructive",
+      className: "bg-red-50 text-red-900 border-red-200",
+    });
+  };
+
+  // Амжилттай үед харуулах toast
+  const showSuccessToast = (message) => {
+    toast({
+      title: "Амжилттай!",
+      description: message,
+      variant: "default",
+      className: "bg-green-50 text-green-900 border-green-200",
+    });
   };
 
   // Toast компонент
@@ -752,6 +691,151 @@ const SpeechToText = () => {
     );
   };
 
+  const handleMicClick = () => {
+    // Event бүртгэх
+    window.gtag("event", "mic_click", {
+      event_category: "engagement",
+      event_label: "Microphone button clicked",
+    });
+
+    // ... бусад код
+  };
+
+  // Файл боловсруулах функц
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setIsProcessingFile(true);
+    setFileError(null);
+
+    try {
+      let text = "";
+
+      // Word файл шалгах
+      if (file.name.endsWith(".docx")) {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        text = result.value;
+      }
+      // Text файл шалгах
+      else if (file.name.endsWith(".txt")) {
+        text = await file.text();
+      }
+      // PDF файл шалга
+      else if (file.name.endsWith(".pdf")) {
+        // PDF боловсруулах код
+        setFileError("PDF файл эмжигдэхгүй байна");
+        return;
+      } else {
+        setFileError("Зөвхөн .docx болон .txt файл дэмжигдэнэ");
+        return;
+      }
+
+      if (!text) {
+        setFileError("Файл хоосон байна");
+        return;
+      }
+
+      setFileText(text);
+
+      // Bracket words олох
+      const bracketMatches = text.match(/\[(.*?)\]/g) || [];
+      const uniqueBracketWords = [...new Set(bracketMatches)];
+      setBracketWords(uniqueBracketWords);
+    } catch (err) {
+      setFileError("Файл уншихад алдаа гарлаа");
+    } finally {
+      setIsProcessingFile(false);
+    }
+  };
+
+  // Текст харьцуулах функц
+  const compareTexts = (fileText, speechText) => {
+    const fileWords = fileText.toLowerCase().split(/\s+/);
+    const speechWords = speechText.toLowerCase().split(/\s+/);
+
+    const matches = speechWords.filter(
+      (word) => fileWords.includes(word) && word.length > 2
+    );
+
+    setMatchingWords(matches);
+  };
+
+  // Хаалтан доторх үгсийг олох функц
+  const extractBracketWords = (text) => {
+    if (!text) return [];
+
+    const regex = /\[(.*?)\]/g;
+    const matches = [...text.matchAll(regex)];
+    const words = matches.map((match) => match[1].trim());
+
+    console.log("Extracted words:", words); // Олдсон гс
+    return words;
+  };
+
+  // Тодорхой үр дүн рүү скролл хийх
+  const scrollToResult = (index) => {
+    if (!textContainerRef.current || !searchResults[index]) return;
+
+    const lineElements =
+      textContainerRef.current.querySelectorAll(".text-line");
+    const targetLine = lineElements[searchResults[index].line];
+
+    if (targetLine) {
+      targetLine.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  // Speech recognition handler дотор нэмэх
+  const handleResult = (event) => {
+    const transcript = Array.from(event.results)
+      .map((result) => result[0].transcript)
+      .join("");
+
+    setTranscript(transcript);
+
+    // Бүх хэллэгийг AI-д дамжуулах
+    if (transcript.trim()) {
+      getAIResponse(transcript.trim());
+    }
+  };
+
+  // Хайлтын функц
+  const searchInText = (searchWord) => {
+    if (!searchWord || !textContainerRef.current) return;
+
+    const container = textContainerRef.current;
+    const text = container.textContent;
+    const results = [];
+    let index = -1;
+
+    // Хайлтын үр дүн олох
+    while (
+      (index = text
+        .toLowerCase()
+        .indexOf(searchWord.toLowerCase(), index + 1)) !== -1
+    ) {
+      results.push(index);
+    }
+
+    setSearchResults(results);
+
+    // хний олдсон үг рүү scroll хийх
+    if (results.length > 0) {
+      const range = document.createRange();
+      const textNode = container.firstChild;
+      range.setStart(textNode, results[0]);
+      range.setEnd(textNode, results[0] + searchWord.length);
+
+      const rect = range.getBoundingClientRect();
+      container.scrollTo({
+        top: rect.top - container.getBoundingClientRect().top - 50,
+        behavior: "smooth",
+      });
+    }
+  };
+
   // isSearchMode өөрчлөгдөх үе alert харуулах
   useEffect(() => {
     if (isSearchMode) {
@@ -763,6 +847,37 @@ const SpeechToText = () => {
       return () => clearTimeout(timer); // cleanup
     }
   }, [isSearchMode]);
+
+  // Файл хадгалах функц
+  const saveFileToFirestore = async (fileName, content) => {
+    try {
+      console.log("\n=== Saving File Start ===");
+      console.log("File details:", {
+        fileName,
+        contentLength: content.length,
+        contentPreview: content.substring(0, 100),
+        userId: user.uid,
+      });
+
+      const docRef = await addDoc(collection(db, "files"), {
+        fileName,
+        content,
+        userId: user.uid,
+        createdAt: Timestamp.now(),
+      });
+
+      console.log("File saved successfully:", {
+        fileId: docRef.id,
+        fileName,
+      });
+      console.log("=== Saving File End ===\n");
+
+      return docRef;
+    } catch (error) {
+      console.error("\nError saving file:", error);
+      throw new Error("Файл хадгалахад алдаа гарлаа");
+    }
+  };
 
   // Retry function with exponential backoff
   const retryOperation = async (operation, retries = 0) => {
@@ -808,7 +923,7 @@ const SpeechToText = () => {
 
       if (error.code === "unavailable") {
         setLoadingError(
-          "Сүлжээний алдаа гарлаа. Та интернет холболтоо шалгана уу."
+          "Сүжээний алдаа гарлаа. Та интернет холболтоо шалгана уу."
         );
       } else {
         setLoadingError("Файлуудыг ачаалахад алдаа гарлаа. Дахин оролдоно уу.");
@@ -825,86 +940,136 @@ const SpeechToText = () => {
     }
   }, [user]);
 
+  // Файл уншиж авах функц
+  const readFileContent = async (file) => {
+    try {
+      console.log("\n=== Reading File Content ===");
+      console.log("File type:", file.type);
+
+      let content;
+      if (
+        file.type ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ) {
+        // .docx файл
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        content = result.value;
+      } else {
+        // .txt файл
+        content = await file.text();
+      }
+
+      console.log("Content read successfully:", {
+        contentLength: content.length,
+        preview: content.substring(0, 100),
+      });
+      console.log("=== Reading File Content End ===\n");
+
+      return content;
+    } catch (error) {
+      console.error("\nError reading file:", error);
+      throw new Error("Файл уншихад алдаа гарлаа");
+    }
+  };
+
   // Файл оруулах handler
   const handleFileChange = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+    const file = event.target.files?.[0];
+
+    console.log("\n=== File Upload Start ===");
+    console.log("File details:", {
+      fileName: file?.name,
+      fileSize: file?.size,
+      fileType: file?.type,
+      hasUser: !!user,
+      userId: user?.uid,
+    });
+
+    if (!file || !user) {
+      console.log(
+        "File upload cancelled: ",
+        !file ? "No file selected" : "No user"
+      );
+      return;
+    }
+
+    // File size check
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_FILE_SIZE) {
+      console.log("File too large:", {
+        fileSize: file.size,
+        maxSize: MAX_FILE_SIZE,
+      });
+      toast({
+        variant: "destructive",
+        title: "Файлын хэмжээ хэтэрсэн",
+        description: "Файлын хэмжээ 5MB-с их байж болохгүй",
+      });
+      return;
+    }
 
     setIsProcessingFile(true);
     setFileError(null);
 
     try {
-      let text = "";
+      console.log("Reading file content...");
+      // Файл уншиж авах
+      const content = await readFileContent(file);
+      console.log("File content read successfully:", {
+        contentLength: content.length,
+        preview: content.substring(0, 100),
+      });
 
-      if (file.name.endsWith(".docx")) {
-        const arrayBuffer = await file.arrayBuffer();
-        const result = await mammoth.extractRawText({ arrayBuffer });
-        text = result.value;
-      } else if (file.name.endsWith(".txt")) {
-        text = await file.text();
-      } else {
-        throw new Error("Зөвхөн .docx болон .txt файл оруулах боломжтой.");
-      }
+      console.log("Saving to Firestore...");
+      // Firestore-д хадгалах
+      const savedFile = await saveFileToFirestore(file.name, content);
+      console.log("File saved to Firestore:", {
+        fileId: savedFile.id,
+        fileName: file.name,
+      });
 
-      // Файлын контентыг форматлах
-      const formattedText = text
-        .replace(/\r\n/g, "\n")
-        .replace(/\n{3,}/g, "\n\n")
-        .trim();
+      // UI шинэчлэх
+      setFileText(content);
+      setSavedFiles((prev) => [
+        {
+          id: savedFile.id,
+          fileName: file.name,
+          content,
+          createdAt: Timestamp.now(),
+        },
+        ...prev,
+      ]);
 
-      // Файлын мэдээллийг Firestore-д хадгалах
-      if (user) {
-        try {
-          await addDoc(collection(db, "files"), {
-            userId: user.uid,
-            fileName: file.name,
-            content: formattedText,
-            createdAt: Timestamp.now(),
-          });
+      // Success toast
+      toast({
+        title: "Амжилттай",
+        description: "Файл амжилттай хадгалагдлаа",
+        variant: "default",
+      });
 
-          toast({
-            description: "Файл амжилттай хадгалагдлаа",
-          });
-
-          // Файлын жагсаалтыг шинэчлэх
-          loadSavedFiles();
-        } catch (dbError) {
-          console.error("Database error:", dbError);
-          toast({
-            variant: "destructive",
-            title: "Алдаа",
-            description: "Файл хадгалахад алдаа гарлаа. Дахин оролдоно уу.",
-          });
-        }
-      }
-
-      // Файлын контентыг state-д оноох
-      setFileText(formattedText);
-
-      // Файлын контентоос асуулт, хариултуудыг задлах
-      const qaRegex = /\[(.*?)\][\s\n]*{([\s\S]*?)}/g;
-      const answers = {};
-      let match;
-
-      while ((match = qaRegex.exec(formattedText)) !== null) {
-        const question = match[1].trim();
-        const answer = match[2].trim();
-        answers[question] = answer;
-      }
-
-      // Reset file input
-      event.target.value = "";
+      console.log("=== File Upload End ===\n");
     } catch (error) {
-      console.error("File processing error:", error);
-      setFileError(error.message || "Файл уншихад алдаа гарлаа");
+      console.error("\nFile processing error:", error);
+      console.log("Error details:", {
+        message: error.message,
+        stack: error.stack,
+      });
+
+      // UI error message
+      setFileError(error.message);
+
+      // Error toast
       toast({
         variant: "destructive",
-        title: "Файл алдаа",
-        description:
-          error.message || "Файл уншихад алдаа гарлаа. Дахин оролдоно уу.",
+        title: "Алдаа гарлаа",
+        description: error.message || "Файл оруулахад алдаа гарлаа",
       });
     } finally {
       setIsProcessingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -924,9 +1089,28 @@ const SpeechToText = () => {
 
       toast({
         variant: "destructive",
-        description: "Фа��л устгахад алдаа гарлаа",
+        description: "Файл устгахад алдаа гарлаа",
       });
     }
+  };
+
+  // Цэвэрлэх функцийг шинэчилье
+  const clearTranscript = () => {
+    // Бүх state-үүдийг цэвэрлэх
+    setTranscript("");
+    setAllTranscripts([]);
+    setAllTranslations([]);
+    setInterimTranscript("");
+    setError(null);
+    setTranslationError(null);
+
+    // Toast мессеж харуулах
+    toast({
+      title: "Амжилттай!",
+      description: "Текст амжилттай устгагдлаа",
+      variant: "default", // эсвэл "destructive" гэж өгч болно
+      className: "bg-green-50 text-green-900 border-green-200",
+    });
   };
 
   // Текст хайх функц
@@ -968,7 +1152,7 @@ const SpeechToText = () => {
           block: "center",
         });
 
-        // Олдон текстийг түр хугацаагаар highlight хийх
+        // Олдсон текстийг түр хугацаагаар highlight хийх
         element.classList.add("bg-yellow-200");
         setTimeout(() => {
           element.classList.remove("bg-yellow-200");
@@ -995,66 +1179,71 @@ const SpeechToText = () => {
     }
   }, [transcript]);
 
-  // Add new function to handle AI processing
-  const processWithAI = async (text) => {
-    if (!text?.trim()) return;
+  // AI хариулт авах функц
+  const getAIResponse = async (question) => {
+    if (!user) {
+      toast({
+        title: "Анхааруулга",
+        description: "AI хариулт авахын тулд нэвтэрнэ үү",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsProcessingAI(true);
+    setAiError(null);
+
     try {
-      // First, try to find exact match in the file content
-      const qaRegex = /\[(.*?)\][\s\n]*{([\s\S]*?)}/g;
-      let matches = [];
-      let match;
+      console.log("\n=== AI Request Start ===");
+      console.log("Sending request:", {
+        question,
+        userId: user.uid,
+      });
 
-      while ((match = qaRegex.exec(fileText)) !== null) {
-        matches.push({
-          question: match[1].trim().toLowerCase(),
-          answer: match[2].trim(),
-        });
-      }
-
-      // Find best matching question
-      const userQuestion = text.toLowerCase();
-      let bestMatch =
-        matches.find((m) => m.question === userQuestion) ||
-        matches.find((m) => userQuestion.includes(m.question)) ||
-        matches.find((m) => m.question.includes(userQuestion));
-
-      if (bestMatch) {
-        setAiResponse(bestMatch.answer);
-        return;
-      }
-
-      // If no match found in file, call AI API
       const response = await fetch("/api/ai", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          text: text,
+          text: question,
+          userId: user.uid,
         }),
       });
 
-      const data = await response.json();
+      console.log("Response status:", response.status);
 
       if (!response.ok) {
-        throw new Error(data.error || `AI request failed: ${response.status}`);
+        const errorData = await response.json();
+        console.error("Error response:", errorData);
+        throw new Error(errorData.error || "AI хариулт авахад алдаа гарлаа");
       }
 
-      if (data.error) {
-        throw new Error(data.error);
+      const data = await response.json();
+      console.log("AI Response data:", {
+        responseLength: data.response?.length,
+        responsePreview: data.response?.substring(0, 100),
+      });
+
+      if (data.response) {
+        setAiResponse(data.response);
+        toast({
+          title: "AI Хариулт бэлэн",
+          description: "Асуултад хариулт өглөө",
+          className: "bg-green-50 text-green-900 border-green-200",
+        });
+      } else {
+        throw new Error("AI хариулт хоосон байна");
       }
 
-      setAiResponse(data.response);
+      console.log("=== AI Request End ===\n");
     } catch (error) {
-      console.error("AI Processing error:", error);
+      console.error("\nAI Request Error:", error);
+      setAiError(error.message);
       toast({
+        title: "AI Алдаа",
+        description: error.message,
         variant: "destructive",
-        title: "AI Error",
-        description:
-          error.message ||
-          "Хариулт боловсруулахад алдаа гарлаа. Дахин оролдоно уу.",
       });
     } finally {
       setIsProcessingAI(false);
@@ -1172,51 +1361,32 @@ const SpeechToText = () => {
                 Speech to Text
               </h2>
               <div className="flex gap-3 w-full sm:w-auto">
-                <div className="flex flex-col gap-8">
-                  {/* Buttons Container */}
-                  <div className="flex items-center justify-center gap-4">
-                    {/* Микрофон button */}
-                    <div className="flex flex-col items-center gap-1">
-                      <Button
-                        onClick={toggleListening}
-                        className={`w-12 h-10 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 ${
-                          isListening
-                            ? "bg-red-500 hover:bg-red-600"
-                            : "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-                        }`}
-                      >
-                        {isListening ? (
-                          <MicOff className="w-10 h-10 text-white" />
-                        ) : (
-                          <Mic className="w-10 h-10 text-white" />
-                        )}
-                      </Button>
-                    </div>
-
-                    {/* Хайх горим button */}
-                    <div className="flex flex-col items-center gap-1">
-                      <Button
-                        onClick={handleClearText}
-                        className={`w-12 h-10 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 
-                          bg-white border border-gray-200 hover:border-red-300 hover:bg-red-50`}
-                        title="Текст устгах"
-                      >
-                        <svg
-                          className="w-6 h-6 text-gray-600 hover:text-red-500"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </Button>
-                    </div>
-                  </div>
+                <div className="flex items-center gap-2">
+                  {/* Микрофон товчлуур */}
+                  <Button
+                    onClick={toggleListening}
+                    className={`w-12 h-10 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 ${
+                      isListening
+                        ? "bg-red-500 hover:bg-red-600"
+                        : "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                    }`}
+                  >
+                    {isListening ? (
+                      <MicOff className="w-10 h-10 text-white" />
+                    ) : (
+                      <Mic className="w-10 h-10 text-white" />
+                    )}
+                  </Button>
+                  {/* Цэвэрлэх товчлуур */}
+                  <Button
+                    onClick={clearTranscript}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-600"
+                    size="sm"
+                    variant="ghost"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Цэвэрлэх
+                  </Button>
                 </div>
               </div>
             </div>
@@ -1254,21 +1424,154 @@ const SpeechToText = () => {
           </CardContent>
         </Card>
 
-        {/* Remove the Mongolian Translation Card and directly place AI Response Card */}
-        {!isTranslationEnabled && (
-          <AIResponseCard
-            transcript={transcript}
-            aiResponse={aiResponse}
-            isProcessingAI={isProcessingAI}
-            setAiResponse={setAiResponse}
-          />
-        )}
+        {/* Mongolian Translation Card */}
+        <Card className="overflow-hidden border-2 border-gray-100 shadow-lg hover:shadow-xl transition-shadow">
+          <CardContent className="p-4 md:p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Монгол орчуулга
+              </h2>
+              <div className="flex items-center gap-4">
+                {!isTranslationEnabled ? (
+                  <Button
+                    onClick={() => setIsModalOpen(true)}
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90 transition-opacity"
+                  >
+                    Орчуулах
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm text-green-500">
+                      Орчуулга идэвхтэй
+                    </div>
+                    <Button
+                      onClick={handleDisableTranslation}
+                      className="bg-red-500 hover:bg-red-600 text-white text-sm px-3 py-1"
+                      size="sm"
+                    >
+                      Гарах
+                    </Button>
+                  </div>
+                )}
+                {interimTranscript && (
+                  <div className="text-sm text-gray-500 animate-pulse">
+                    Бэлэн болсн...
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {translationError && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                {translationError}
+              </div>
+            )}
+
+            <div className="min-h-[300px] p-4 bg-gray-50 rounded-lg overflow-y-auto shadow-inner">
+              {allTranslations.map((text, index) => (
+                <div
+                  key={index}
+                  className="mb-3 text-base md:text-lg leading-relaxed text-black font-medium"
+                >
+                  {text}
+                </div>
+              ))}
+              {interimTranscript && isTranslationEnabled && (
+                <div className="relative">
+                  <div className="text-base md:text-lg text-gray-400 italic opacity-60 break-words">
+                    Орчуулж байна...
+                  </div>
+                  <div className="absolute right-0 bottom-0 flex items-center text-gray-400 text-sm">
+                    <div className="flex space-x-1">
+                      <div
+                        className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "0ms" }}
+                      ></div>
+                      <div
+                        className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "150ms" }}
+                      ></div>
+                      <div
+                        className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "300ms" }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {allTranslations.length === 0 && !interimTranscript && (
+                <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                  <svg
+                    className="w-8 h-8 mb-2 opacity-50"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
+                    />
+                  </svg>
+                  <p>Орчуулга энд харагдана..</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <TranslationCodeModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
+
+      {isSearchMode && showAlert && (
+        <div
+          role="alert"
+          className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-auto max-w-[90%] p-3 bg-purple-50 border border-purple-200 rounded-lg flex items-center gap-2 shadow-md animate-slideDown"
+        >
+          <Info className="h-4 w-4 shrink-0 text-purple-600" />
+          <p className="text-sm text-purple-700">
+            Хайх үгийг [ ] хаалтанд хэлнэ. Жишээ нь: [hello]
+          </p>
+        </div>
+      )}
+      {/* AI Response Section */}
+      <Card className="mt-6">
+        <CardContent className="p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+              AI Хариулт
+            </h2>
+            {isProcessingAI && (
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-500" />
+                <span className="text-sm text-gray-500">
+                  Боловсруулж байна...
+                </span>
+              </div>
+            )}
+          </div>
+
+          {aiError ? (
+            <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+              <p className="text-red-800">{aiError}</p>
+            </div>
+          ) : aiResponse ? (
+            <div className="p-4 bg-purple-50 rounded-lg">
+              <p className="text-purple-900 whitespace-pre-wrap">
+                {aiResponse}
+              </p>
+            </div>
+          ) : (
+            <div className="text-center text-gray-500 p-8">
+              Асуулт асуувал AI хариулт энд харагдана
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {user && (
         <Card className="overflow-hidden mt-4">
