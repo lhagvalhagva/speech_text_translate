@@ -2,7 +2,6 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import {
   getFirestore,
-  enableIndexedDbPersistence,
   CACHE_SIZE_UNLIMITED,
   initializeFirestore,
   persistentLocalCache,
@@ -30,24 +29,4 @@ export const db = initializeFirestore(app, {
     tabManager: persistentSingleTabManager(),
   }),
   experimentalForceLongPolling: true,
-  cache: {
-    lruParams: {
-      sizeBytes: 40000000, // 40 MB
-    },
-  },
 });
-
-// Enable offline persistence
-// try {
-//   enableIndexedDbPersistence(db).catch((err) => {
-//     if (err.code === "failed-precondition") {
-//       // Multiple tabs open, persistence can only be enabled in one tab at a time.
-//       console.log("Persistence unavailable - multiple tabs may be open");
-//     } else if (err.code === "unimplemented") {
-//       // The current browser doesn't support persistence
-//       console.log("Persistence not supported by browser");
-//     }
-//   });
-// } catch (err) {
-//   console.log("Error enabling persistence:", err);
-// }
