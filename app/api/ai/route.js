@@ -26,6 +26,20 @@ export async function POST(request) {
   };
 
   try {
+    // Check if API key is configured
+    if (
+      !process.env.GOOGLE_GEMINI_API_KEY &&
+      !process.env.NEXT_PUBLIC_GOOGLE_GEMINI_API_KEY
+    ) {
+      return new Response(
+        JSON.stringify({
+          error: "AI service is not configured",
+          details: "Please contact the administrator",
+        }),
+        { status: 503, headers }
+      );
+    }
+
     const body = await request.text();
 
     if (!body) {

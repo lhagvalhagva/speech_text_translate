@@ -9,19 +9,21 @@ import {
   limit,
 } from "firebase/firestore";
 
-// Add error checking for API key
+// Update API key handling
 const API_KEY =
   process.env.GOOGLE_GEMINI_API_KEY ||
   process.env.NEXT_PUBLIC_GOOGLE_GEMINI_API_KEY;
 
-if (!API_KEY) {
-  throw new Error(
-    "GOOGLE_GEMINI_API_KEY is not configured. Please check your environment variables."
-  );
+// Initialize genAI conditionally
+let genAI;
+try {
+  if (API_KEY) {
+    genAI = new GoogleGenerativeAI(API_KEY);
+  }
+} catch (error) {
+  console.error("Failed to initialize Google Generative AI:", error);
 }
 
-// Initialize genAI only if API key exists
-const genAI = new GoogleGenerativeAI(API_KEY);
 const MAX_CONTEXT_LENGTH = 40000; // Maximum context length for Gemini
 
 // Файлуудаас контекст цуглуулах функц
@@ -110,6 +112,10 @@ async function getContextFromFiles(userId) {
 // AI хариулт авах функц
 export async function getPalmResponse(question, userId) {
   try {
+    if (!genAI) {
+      throw new Error("AI service is not configured");
+    }
+
     if (!question || !userId) {
       throw new Error("Question and userId are required");
     }
