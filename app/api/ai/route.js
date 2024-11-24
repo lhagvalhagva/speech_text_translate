@@ -18,7 +18,6 @@ export const config = {
 };
 
 export async function POST(request) {
-  // CORS headers нэмэх
   const headers = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -28,83 +27,57 @@ export async function POST(request) {
 
   try {
     const body = await request.text();
+
     if (!body) {
-      return new Response(
-        JSON.stringify({
-          error: "Empty request body",
-        }),
-        {
-          status: 400,
-          headers,
-        }
-      );
+      console.error("Empty request body received");
+      return new Response(JSON.stringify({ error: "Empty request body" }), {
+        status: 400,
+        headers,
+      });
     }
 
     let data;
     try {
       data = JSON.parse(body);
     } catch (parseError) {
+      console.error("JSON parse error:", parseError);
       return new Response(
         JSON.stringify({
           error: "Invalid JSON format",
           details: parseError.message,
         }),
-        {
-          status: 400,
-          headers,
-        }
+        { status: 400, headers }
       );
     }
 
     const { text, userId } = data;
 
     if (!text || !userId) {
+      console.error("Missing required fields:", { text, userId });
       return new Response(
         JSON.stringify({
           error: "Text and userId are required",
+          received: { hasText: !!text, hasUserId: !!userId },
         }),
-        {
-          status: 400,
-          headers,
-        }
+        { status: 400, headers }
       );
     }
 
-    try {
-      const response = await getPalmResponse(text, userId);
+    const response = await getPalmResponse(text, userId);
 
-      if (!response) {
-        throw new Error("Empty response from AI");
-      }
-
-      return new Response(JSON.stringify({ response }), {
-        status: 200,
-        headers,
-      });
-    } catch (genError) {
-      console.error("AI processing error:", genError);
-      return new Response(
-        JSON.stringify({
-          error: "AI боловсруулалтад алдаа гарлаа",
-          details: genError.message,
-        }),
-        {
-          status: 500,
-          headers,
-        }
-      );
-    }
+    return new Response(JSON.stringify({ response }), { status: 200, headers });
   } catch (error) {
-    console.error("Request processing error:", error);
+    console.error("API error:", {
+      message: error.message,
+      stack: error.stack,
+    });
+
     return new Response(
       JSON.stringify({
-        error: "Хүсэлт боловсруулахад алдаа гарлаа",
-        details: error.message,
+        error: error.message || "AI боловсруулалтад алдаа гарлаа",
+        timestamp: new Date().toISOString(),
       }),
-      {
-        status: 500,
-        headers,
-      }
+      { status: 500, headers }
     );
   }
 }

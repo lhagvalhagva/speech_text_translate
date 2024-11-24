@@ -9,7 +9,13 @@ import {
   limit,
 } from "firebase/firestore";
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY);
+// Add error checking for API key
+const API_KEY = process.env.GOOGLE_GEMINI_API_KEY;
+if (!API_KEY) {
+  throw new Error("GOOGLE_GEMINI_API_KEY is not configured");
+}
+
+const genAI = new GoogleGenerativeAI(API_KEY);
 const MAX_CONTEXT_LENGTH = 40000; // Maximum context length for Gemini
 
 // Файлуудаас контекст цуглуулах функц
@@ -99,6 +105,12 @@ async function getContextFromFiles(userId) {
 export async function getPalmResponse(question, userId) {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+    // Add input validation
+    if (!question || !userId) {
+      throw new Error("Question and userId are required");
+    }
+
     const context = await getContextFromFiles(userId);
 
     console.log({
@@ -126,17 +138,35 @@ export async function getPalmResponse(question, userId) {
     7. Respond in the same language as the user's question
 `;
 
+    // Add safety check for result
     const result = await model.generateContent(prompt);
-    const response = await result.response;
+    if (!result || !result.response) {
+      throw new Error("Invalid response from Gemini API");
+    }
 
-    console.log({
-      message: "AI response generated",
-      response: response.text(),
+    const response = await result.response;
+    const responseText = response.text();
+
+    // Validate response
+    if (!responseText) {
+      throw new Error("Empty response from AI");
+    }
+
+    return responseText;
+  } catch (error) {
+    // More detailed error logging
+    console.error("Error in getPalmResponse:", {
+      error: error.message,
+      stack: error.stack,
+      question,
+      userId,
     });
 
-    return response.text();
-  } catch (error) {
-    console.error("Error in getPalmResponse:", error);
-    throw error;
+    // Throw a user-friendly error
+    throw new Error(
+      error.message === "GOOGLE_GEMINI_API_KEY is not configured"
+        ? "AI service is not properly configured"
+        : "AI боловсруулалтад алдаа гарлаа"
+    );
   }
 }
