@@ -15,7 +15,8 @@ if (!API_KEY) {
   throw new Error("GOOGLE_GEMINI_API_KEY is not configured");
 }
 
-const genAI = new GoogleGenerativeAI(API_KEY);
+// Initialize genAI only if API key exists
+const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY) : null;
 const MAX_CONTEXT_LENGTH = 40000; // Maximum context length for Gemini
 
 // Файлуудаас контекст цуглуулах функц
@@ -104,6 +105,10 @@ async function getContextFromFiles(userId) {
 // AI хариулт авах функц
 export async function getPalmResponse(question, userId) {
   try {
+    if (!API_KEY || !genAI) {
+      throw new Error("AI service is not properly configured");
+    }
+
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     // Add input validation
@@ -154,17 +159,16 @@ export async function getPalmResponse(question, userId) {
 
     return responseText;
   } catch (error) {
-    // More detailed error logging
     console.error("Error in getPalmResponse:", {
       error: error.message,
       stack: error.stack,
+      hasApiKey: !!API_KEY,
       question,
       userId,
     });
 
-    // Throw a user-friendly error
     throw new Error(
-      error.message === "GOOGLE_GEMINI_API_KEY is not configured"
+      !API_KEY
         ? "AI service is not properly configured"
         : "AI боловсруулалтад алдаа гарлаа"
     );
