@@ -10,13 +10,18 @@ import {
 } from "firebase/firestore";
 
 // Add error checking for API key
-const API_KEY = process.env.GOOGLE_GEMINI_API_KEY;
+const API_KEY =
+  process.env.GOOGLE_GEMINI_API_KEY ||
+  process.env.NEXT_PUBLIC_GOOGLE_GEMINI_API_KEY;
+
 if (!API_KEY) {
-  throw new Error("GOOGLE_GEMINI_API_KEY is not configured");
+  throw new Error(
+    "GOOGLE_GEMINI_API_KEY is not configured. Please check your environment variables."
+  );
 }
 
 // Initialize genAI only if API key exists
-const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY) : null;
+const genAI = new GoogleGenerativeAI(API_KEY);
 const MAX_CONTEXT_LENGTH = 40000; // Maximum context length for Gemini
 
 // Файлуудаас контекст цуглуулах функц
@@ -105,16 +110,11 @@ async function getContextFromFiles(userId) {
 // AI хариулт авах функц
 export async function getPalmResponse(question, userId) {
   try {
-    if (!API_KEY || !genAI) {
-      throw new Error("AI service is not properly configured");
-    }
-
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-
-    // Add input validation
     if (!question || !userId) {
       throw new Error("Question and userId are required");
     }
+
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     const context = await getContextFromFiles(userId);
 
@@ -159,18 +159,7 @@ export async function getPalmResponse(question, userId) {
 
     return responseText;
   } catch (error) {
-    console.error("Error in getPalmResponse:", {
-      error: error.message,
-      stack: error.stack,
-      hasApiKey: !!API_KEY,
-      question,
-      userId,
-    });
-
-    throw new Error(
-      !API_KEY
-        ? "AI service is not properly configured"
-        : "AI боловсруулалтад алдаа гарлаа"
-    );
+    console.error("Error in getPalmResponse:", error);
+    throw error;
   }
 }

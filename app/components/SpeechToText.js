@@ -303,16 +303,31 @@ const SpeechToText = () => {
     let recognitionInstance = null;
     const MAX_RETRIES = 3;
     const RETRY_DELAY = 2000; // 2 seconds
+    let retryTimeout = null;
 
     const handleReconnect = async (instance) => {
       try {
         setIsReconnecting(true);
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        setError("Дахин холбогдож байна...");
 
+        // Stop the current instance if it exists
         if (instance) {
-          instance.stop();
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          await instance.start();
+          try {
+            instance.stop();
+          } catch (e) {
+            console.warn("Error stopping recognition:", e);
+          }
+        }
+
+        // Wait before attempting to reconnect
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+
+        // Create and start a new instance
+        const newInstance = initializeRecognition();
+        if (newInstance) {
+          await newInstance.start();
+          setRecognition(newInstance);
+          setError(null);
         }
       } catch (e) {
         console.warn("Reconnection attempt failed:", e);
@@ -331,6 +346,53 @@ const SpeechToText = () => {
         instance.continuous = true;
         instance.interimResults = true;
         instance.lang = "en-US";
+
+        // Modified error handler
+        instance.onerror = async (event) => {
+          console.warn("Speech Recognition Error:", event.error);
+
+          if (event.error === "aborted" || event.error === "network") {
+            if (retryCount < MAX_RETRIES) {
+              const nextRetryCount = retryCount + 1;
+              setRetryCount(nextRetryCount);
+              setError(
+                `Холболт тасарлаа. Дахин холбогдож байна... (${nextRetryCount}/${MAX_RETRIES})`
+              );
+
+              // Clear any existing retry timeout
+              if (retryTimeout) {
+                clearTimeout(retryTimeout);
+              }
+
+              // Set new retry timeout
+              retryTimeout = setTimeout(
+                () => handleReconnect(instance),
+                RETRY_DELAY
+              );
+            } else {
+              setError("Холболт амжилтгүй. Та дахин эхлүүлнэ үү.");
+              setIsListening(false);
+            }
+            return;
+          }
+
+          // Handle other errors
+          switch (event.error) {
+            case "not-allowed":
+            case "permission-denied":
+              setError("Микрофон ашиглах зөвшөөрөл өгөөгүй байна.");
+              break;
+            case "no-speech":
+              setError("Ямар нэгэн дуу сонсогдсонгүй");
+              break;
+            case "audio-capture":
+              setError("Микрофон олдсонгүй. Микрофоноо шалгана уу.");
+              break;
+            default:
+              setError(`Алдаа гарлаа: ${event.error}`);
+          }
+          setIsListening(false);
+        };
 
         instance.onresult = async (event) => {
           const now = Date.now();
@@ -380,66 +442,6 @@ const SpeechToText = () => {
           setInterimTranscript(currentInterim);
         };
 
-        instance.onerror = async (event) => {
-          console.warn("Speech Recognition Status:", event.error);
-
-          if (event.error === "aborted") {
-            // Aborted алдааны үед дахин эхлүүлэх
-            if (retryCount < MAX_RETRIES) {
-              const nextRetryCount = retryCount + 1;
-              setRetryCount(nextRetryCount);
-              setError(
-                `Холболт тасарлаа. Дахин холбогдож байна... (${nextRetryCount}/${MAX_RETRIES})`
-              );
-
-              setTimeout(() => handleReconnect(instance), RETRY_DELAY);
-              return;
-            }
-          }
-
-          if (event.error === "network" && retryCount < MAX_RETRIES) {
-            const nextRetryCount = retryCount + 1;
-            setRetryCount(nextRetryCount);
-            setError(
-              `Сүлжээний алдаа. ${nextRetryCount}-р оролдлого... (${nextRetryCount}/${MAX_RETRIES})`
-            );
-
-            if (reconnectTimer) {
-              clearTimeout(reconnectTimer);
-            }
-
-            const timer = setTimeout(
-              () => handleReconnect(instance),
-              RETRY_DELAY
-            );
-            setReconnectTimer(timer);
-          } else {
-            switch (event.error) {
-              case "network":
-                setError(
-                  `Сүлжээний алдаа гарлаа. Таны интернэт холболтыг шалгана уу. (${MAX_RETRIES}/${MAX_RETRIES} оролдлого дууссан)`
-                );
-                break;
-              case "not-allowed":
-              case "permission-denied":
-                setError("Микрофон ашиглах зөвшөөрөл өгөөгүй байна.");
-                break;
-              case "no-speech":
-                setError("Ямар нэгэн дуу сонсогдсонгүй");
-                break;
-              case "audio-capture":
-                setError("Микрофон олдсонгүй. Микрофоноо шалгана уу.");
-                break;
-              case "aborted":
-                setError("Холболт тасарлаа. Дахин эхлүүлнэ үү.");
-                break;
-              default:
-                setError(`Алдаа гарлаа: ${event.error}`);
-            }
-            setIsListening(false);
-          }
-        };
-
         instance.onend = () => {
           if (isListening && !isReconnecting) {
             try {
@@ -464,16 +466,14 @@ const SpeechToText = () => {
       }
     };
 
-    const initRecognition = () => {
-      recognitionInstance = initializeRecognition();
-      setRecognition(recognitionInstance);
-    };
+    // Initialize recognition
+    recognitionInstance = initializeRecognition();
+    setRecognition(recognitionInstance);
 
-    initRecognition();
-
+    // Cleanup function
     return () => {
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
       }
       if (recognitionInstance) {
         try {
@@ -1284,7 +1284,7 @@ const SpeechToText = () => {
             </svg>
             <div>
               <p className="text-sm text-yellow-700 font-medium">
-                Анхааруулга: Энэ апп зөвхөн Google Chrome browser дээр бүрэн
+                Анхааруулга: Энэ апп зөвхөн Google Chrome browser дээр бү��эн
                 ажиллах боломжтой.
               </p>
               <p className="text-xs text-yellow-600 mt-1">
