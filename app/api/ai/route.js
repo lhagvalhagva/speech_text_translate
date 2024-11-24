@@ -1,8 +1,27 @@
 import { getPalmResponse } from "../../lib/palm-ai";
 
+// OPTIONS method нэмж өгөх
+export async function OPTIONS(request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
+}
+
 export async function POST(request) {
+  // CORS headers нэмэх
+  const headers = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Content-Type": "application/json",
+  };
+
   try {
-    // Request body шалгах
     const body = await request.text();
     if (!body) {
       return new Response(
@@ -11,12 +30,11 @@ export async function POST(request) {
         }),
         {
           status: 400,
-          headers: { "Content-Type": "application/json" },
+          headers,
         }
       );
     }
 
-    // JSON parse хийх
     let data;
     try {
       data = JSON.parse(body);
@@ -28,14 +46,13 @@ export async function POST(request) {
         }),
         {
           status: 400,
-          headers: { "Content-Type": "application/json" },
+          headers,
         }
       );
     }
 
     const { text, userId } = data;
 
-    // Required fields шалгах
     if (!text || !userId) {
       return new Response(
         JSON.stringify({
@@ -43,7 +60,7 @@ export async function POST(request) {
         }),
         {
           status: 400,
-          headers: { "Content-Type": "application/json" },
+          headers,
         }
       );
     }
@@ -51,14 +68,13 @@ export async function POST(request) {
     try {
       const response = await getPalmResponse(text, userId);
 
-      // Response шалгах
       if (!response) {
         throw new Error("Empty response from AI");
       }
 
       return new Response(JSON.stringify({ response }), {
         status: 200,
-        headers: { "Content-Type": "application/json" },
+        headers,
       });
     } catch (genError) {
       console.error("AI processing error:", genError);
@@ -69,7 +85,7 @@ export async function POST(request) {
         }),
         {
           status: 500,
-          headers: { "Content-Type": "application/json" },
+          headers,
         }
       );
     }
@@ -82,7 +98,7 @@ export async function POST(request) {
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers,
       }
     );
   }
