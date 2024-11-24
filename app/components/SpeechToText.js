@@ -301,6 +301,8 @@ const SpeechToText = () => {
 
   useEffect(() => {
     let recognitionInstance = null;
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 2000; // 2 seconds
 
     const handleReconnect = async (instance) => {
       try {
@@ -314,7 +316,7 @@ const SpeechToText = () => {
         }
       } catch (e) {
         console.warn("Reconnection attempt failed:", e);
-        setError("Дахин холбогдох оролдлого амжилтй боллоо.");
+        setError("Дахин холбогдох оролдлого амжилтгүй боллоо.");
         setIsListening(false);
       } finally {
         setIsReconnecting(false);
@@ -381,23 +383,35 @@ const SpeechToText = () => {
         instance.onerror = async (event) => {
           console.warn("Speech Recognition Status:", event.error);
 
-          if (event.error === "no-speech") {
-            setError("No speech detected. Please speak more clearly.");
-            return;
+          if (event.error === "aborted") {
+            // Aborted алдааны үед дахин эхлүүлэх
+            if (retryCount < MAX_RETRIES) {
+              const nextRetryCount = retryCount + 1;
+              setRetryCount(nextRetryCount);
+              setError(
+                `Холболт тасарлаа. Дахин холбогдож байна... (${nextRetryCount}/${MAX_RETRIES})`
+              );
+
+              setTimeout(() => handleReconnect(instance), RETRY_DELAY);
+              return;
+            }
           }
 
           if (event.error === "network" && retryCount < MAX_RETRIES) {
             const nextRetryCount = retryCount + 1;
             setRetryCount(nextRetryCount);
             setError(
-              `Сүлжээний адаа гарлаа. ${nextRetryCount}-р оролдлого... (${nextRetryCount}/${MAX_RETRIES})`
+              `Сүлжээний алдаа. ${nextRetryCount}-р оролдлого... (${nextRetryCount}/${MAX_RETRIES})`
             );
 
             if (reconnectTimer) {
               clearTimeout(reconnectTimer);
             }
 
-            const timer = setTimeout(() => handleReconnect(instance), 1000);
+            const timer = setTimeout(
+              () => handleReconnect(instance),
+              RETRY_DELAY
+            );
             setReconnectTimer(timer);
           } else {
             switch (event.error) {
@@ -411,10 +425,13 @@ const SpeechToText = () => {
                 setError("Микрофон ашиглах зөвшөөрөл өгөөгүй байна.");
                 break;
               case "no-speech":
-                setError("Ямар нэгэн ду сонсогдсонгүй");
+                setError("Ямар нэгэн дуу сонсогдсонгүй");
                 break;
               case "audio-capture":
-                setError("Микрофон лдсонгүй. Микрофоноо шалгана уу.");
+                setError("Микрофон олдсонгүй. Микрофоноо шалгана уу.");
+                break;
+              case "aborted":
+                setError("Холболт тасарлаа. Дахин эхлүүлнэ үү.");
                 break;
               default:
                 setError(`Алдаа гарлаа: ${event.error}`);
@@ -426,7 +443,7 @@ const SpeechToText = () => {
         instance.onend = () => {
           if (isListening && !isReconnecting) {
             try {
-              // Add delay and check state before restarting
+              // Add delay before restarting
               setTimeout(() => {
                 if (isListening && !isReconnecting) {
                   instance.start();

@@ -59,13 +59,13 @@ export async function POST(request) {
       throw new Error(`Translation API error: ${response.status}`);
     }
 
-    const data = await response.json();
+    const translationData = await response.json();
 
-    if (data.responseStatus !== 200) {
-      throw new Error(data.responseDetails || "Translation failed");
+    if (translationData.responseStatus !== 200) {
+      throw new Error(translationData.responseDetails || "Translation failed");
     }
 
-    const translation = data.responseData.translatedText;
+    const translation = translationData.responseData.translatedText;
 
     return new Response(JSON.stringify({ translation }), {
       status: 200,
