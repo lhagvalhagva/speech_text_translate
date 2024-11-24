@@ -12,6 +12,7 @@ import {
   Bot,
   Users,
   Star,
+  FileText,
 } from "lucide-react";
 
 export default function AboutPage() {
@@ -25,12 +26,27 @@ export default function AboutPage() {
     {
       icon: <Bot className="h-8 w-8 text-blue-500" />,
       title: "AI Туслах",
-      description: "Таны асуултанд хиймэл оюун ухаан ашиглан хариулт өгнө",
+      description: "Ярилцлагын бэлтгэлд туслах AI систем",
     },
     {
       icon: <Users className="h-8 w-8 text-green-500" />,
       title: "Хэрэглэгчийн систем",
-      description: "Өөрийн файл, түүхийг хадгалах боломжтой",
+      description: "Өөрийн файл, яриа, AI харилцааны түүхийг хадгалах",
+    },
+    {
+      icon: <FileText className="h-8 w-8 text-orange-500" />,
+      title: "Файл боловсруулалт",
+      description: "Word файлаас асуулт хариултыг автоматаар таних",
+    },
+    {
+      icon: <Star className="h-8 w-8 text-yellow-500" />,
+      title: "Үнэгүй үйлчилгээ",
+      description: "Бүх үйлчилгээг үнэ төлбөргүй ашиглах боломжтой",
+    },
+    {
+      icon: <Globe className="h-8 w-8 text-indigo-500" />,
+      title: "Олон төрөл",
+      description: "Ярилцлагын олон төрлийн асуулт, хариулттай",
     },
   ];
 

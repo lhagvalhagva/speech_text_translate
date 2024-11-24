@@ -1,9 +1,9 @@
 "use client";
-
+import Link from "next/link";
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { Mic, MicOff, Upload, Search, Info, Trash2 } from "lucide-react";
+import { Mic, MicOff, Upload, Search, Info, Trash2, X } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import { db } from "../lib/firebase";
 import {
@@ -63,6 +63,7 @@ const highlightText = (text) => {
 };
 
 const SpeechToText = () => {
+  const [showGuideAlert, setShowGuideAlert] = useState(true);
   const { toast } = useToast();
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -108,7 +109,15 @@ const SpeechToText = () => {
   const [isProcessingAI, setIsProcessingAI] = useState(false);
   const [aiResponse, setAiResponse] = useState("");
   const [aiError, setAiError] = useState(null);
+  useEffect(() => {
+    if (showGuideAlert) {
+      const timer = setTimeout(() => {
+        setShowGuideAlert(false);
+      }, 5000); // 3 секундын дараа алга болгох
 
+      return () => clearTimeout(timer);
+    }
+  }, []);
   const handleClearText = () => {
     setTranscript("");
     setTranslation("");
@@ -1281,6 +1290,34 @@ const SpeechToText = () => {
         </div>
       )}
 
+      {/* Guide Alert - Component эхэнд нэмэх */}
+      {showGuideAlert && (
+        <div
+          role="alert"
+          className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-auto max-w-[90%] p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3 shadow-md animate-slideDown"
+        >
+          <Info className="h-5 w-5 shrink-0 text-blue-600" />
+          <div>
+            <p className="text-sm font-medium text-blue-900">Анхааруулга</p>
+            <p className="text-sm text-blue-700">
+              Системийг хэрхэн ашиглах талаар{" "}
+              <Link
+                href="/guide"
+                className="font-medium underline hover:text-blue-800"
+              >
+                Заавар
+              </Link>{" "}
+              хэсгээс танилцана уу
+            </p>
+          </div>
+          <button
+            onClick={() => setShowGuideAlert(false)}
+            className="shrink-0 ml-auto p-1 hover:bg-blue-100 rounded-full text-blue-500"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
       {/* File Upload Section */}
       <Card className="overflow-hidden">
         <CardContent className="p-4">

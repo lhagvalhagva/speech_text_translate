@@ -41,7 +41,8 @@ export const CookieConsent = () => {
     <div className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-lg border-t z-50">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="text-sm text-gray-600">
-          Бид таны вэб хөт��ийн cookie ашиглан үйлчилгээгээ сайжруулдаг.
+          Бид таны вэб хөтчийн cookie ашиглан үйлчилгээгээ сайжруулдаг.Энэ илүү
+          хурдан ажилуулна
           <a href="/privacy" className="text-blue-600 hover:underline ml-1">
             Нууцлалын бодлого
           </a>

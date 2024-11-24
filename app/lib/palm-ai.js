@@ -10,7 +10,7 @@ import {
 } from "firebase/firestore";
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY);
-const MAX_CONTEXT_LENGTH = 30000; // Maximum context length for Gemini
+const MAX_CONTEXT_LENGTH = 40000; // Maximum context length for Gemini
 
 // Файлуудаас контекст цуглуулах функц
 async function getContextFromFiles(userId) {
@@ -109,17 +109,22 @@ export async function getPalmResponse(question, userId) {
 
     // Simplified prompt
     const prompt = `
-   You are an artificial intelligence assistant. Your assistant is Worl and travel. going to an interview.Use the following information to answer the questions.
+    Answer the questions by pretending that you are going to an interview for the work and travel program. Your role is to provide helpful, accurate responses to any questions, even if they are not directly covered in the provided context.
 
+    Context information (if available):
     ${context}
 
     Question: "${question}"
 
     Rules:
-    1. If the question is in context, use the context information above.
-    2. If such information is not in the context, answer the questions
-    3. Keep the answers concise and clear using simple words and sentences
-    `;
+    1. If the question relates to information in the context above, use that information in your response
+    2. If the question is not covered by the context, still provide a helpful response based on your general knowledge
+    3. Keep answers concise and clear using simple words and sentences
+    4. Never say "I cannot find the answer" or "the information is not in the context"
+    5. Always provide a helpful response based on your general knowledge when context is not available
+    6. If you're not completely certain about something, acknowledge that while still providing your best guidance
+    7. Respond in the same language as the user's question
+`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
