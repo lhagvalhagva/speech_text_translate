@@ -1295,7 +1295,6 @@ const SpeechToText = () => {
           </div>
         </div>
       )}
-
       {/* Guide Alert - Component эхэнд нэмэх */}
       {showGuideAlert && (
         <div
@@ -1404,6 +1403,40 @@ const SpeechToText = () => {
               </div>
             )}
           </div>
+        </CardContent>
+      </Card>
+      {/* AI Response Section */}
+      <Card className="mt-6">
+        <CardContent className="p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+              AI Хариулт
+            </h2>
+            {isProcessingAI && (
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-500" />
+                <span className="text-sm text-gray-500">
+                  Боловсруулж байна...
+                </span>
+              </div>
+            )}
+          </div>
+
+          {aiError ? (
+            <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+              <p className="text-red-800">{aiError}</p>
+            </div>
+          ) : aiResponse ? (
+            <div className="p-4 bg-purple-50 rounded-lg">
+              <p className="text-purple-900 whitespace-pre-wrap">
+                {aiResponse}
+              </p>
+            </div>
+          ) : (
+            <div className="text-center text-gray-500 p-8">
+              Асуулт асуувал AI хариулт энд харагдана
+            </div>
+          )}
         </CardContent>
       </Card>
       <br></br>
@@ -1576,12 +1609,10 @@ const SpeechToText = () => {
           </CardContent>
         </Card>
       </div>
-
       <TranslationCodeModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
-
       {isSearchMode && showAlert && (
         <div
           role="alert"
@@ -1593,40 +1624,6 @@ const SpeechToText = () => {
           </p>
         </div>
       )}
-      {/* AI Response Section */}
-      <Card className="mt-6">
-        <CardContent className="p-4">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              AI Хариулт
-            </h2>
-            {isProcessingAI && (
-              <div className="flex items-center gap-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-500" />
-                <span className="text-sm text-gray-500">
-                  Боловсруулж байна...
-                </span>
-              </div>
-            )}
-          </div>
-
-          {aiError ? (
-            <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-              <p className="text-red-800">{aiError}</p>
-            </div>
-          ) : aiResponse ? (
-            <div className="p-4 bg-purple-50 rounded-lg">
-              <p className="text-purple-900 whitespace-pre-wrap">
-                {aiResponse}
-              </p>
-            </div>
-          ) : (
-            <div className="text-center text-gray-500 p-8">
-              Асуулт асуувал AI хариулт энд харагдана
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {user && (
         <Card className="overflow-hidden mt-4">
