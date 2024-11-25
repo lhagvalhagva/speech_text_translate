@@ -1344,7 +1344,7 @@ const SpeechToText = () => {
               <>
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    Файл оруулах
+                    Сонгосон файл
                   </h2>
                   <input
                     type="file"
