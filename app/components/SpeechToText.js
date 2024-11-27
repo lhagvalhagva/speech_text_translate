@@ -232,7 +232,7 @@ const SpeechToText = () => {
     try {
       if (!text.trim()) return "";
 
-      // Үгийн тоо шалгах
+      // Үгин тоо шалгах
       const wordCount = countWords(text);
       if (usedWords + wordCount > dailyLimit) {
         setTranslationError("Өдрийн үгийн хязгаар хэтээн байна.");
@@ -696,7 +696,7 @@ const SpeechToText = () => {
               onChange={(e) => setCode(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
               className="w-full px-4 py-3 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              placeholder="Кодоо оруулна уу"
+              placeholder="Кдоо оруулна уу"
               autoFocus
             />
           </div>
@@ -824,7 +824,7 @@ const SpeechToText = () => {
 
     setTranscript(transcript);
 
-    // Бүх хэллэгийг AI-д дамжуулах
+    // Бүх хэ��лэгийг AI-д дамжуулах
     if (transcript.trim()) {
       getAIResponse(transcript.trim());
     }
@@ -1272,30 +1272,45 @@ const SpeechToText = () => {
   const handleTextSubmit = async () => {
     if (!textInput.trim()) {
       toast({
-        variant: "destructive",
-        title: "Алдаа",
         description: "Текст оруулна уу",
+        variant: "destructive",
       });
       return;
     }
 
     try {
-      // AI response авах
-      await getAIResponse(textInput.trim());
+      setIsProcessingAI(true);
 
-      // Текст field-ийг цэвэрлэх
+      // Хэрэв орчуулах mode идэвхтэй бол орчуулна
+      if (isTranslationEnabled) {
+        const translatedText = await translateText(textInput);
+        if (translatedText) {
+          setAllTranslations((prev) => [...prev, translatedText]);
+          toast({
+            description: "Текст амжилттай орчуулагдлаа",
+          });
+        }
+      }
+
+      // Орчуулах mode-оос үл хамааран AI хариулт авах
+      await getAIResponse(textInput);
+
+      // Оролтын талбарыг цэвэрлэх
       setTextInput("");
 
       toast({
-        title: "Амжилттай",
-        description: "Таны асуулт илгээгдлээ",
+        description: isTranslationEnabled
+          ? "Текст амжилттай орчуулагдаж, AI хариулт бэлэн боллоо"
+          : "AI хариулт бэлэн боллоо",
       });
     } catch (error) {
+      console.error("Error:", error);
       toast({
+        description: error.message || "Алдаа гарлаа",
         variant: "destructive",
-        title: "Алдаа",
-        description: "Асуулт илгээхэд алдаа гарлаа",
       });
+    } finally {
+      setIsProcessingAI(false);
     }
   };
 
@@ -1515,9 +1530,9 @@ const SpeechToText = () => {
                     />
                     <Button
                       onClick={handleTextSubmit}
-                      disabled={!textInput.trim()}
+                      disabled={!textInput.trim() || isProcessingAI}
                     >
-                      Илгээх
+                      {isProcessingAI ? "Орчуулж байна..." : "Илгээх"}
                     </Button>
                   </div>
                 </div>
