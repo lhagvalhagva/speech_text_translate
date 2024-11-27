@@ -5,8 +5,6 @@ import {
   AlertCircle,
   HelpCircle,
   Volume2,
-  FileSearch,
-  Brackets,
   Wifi,
   Chrome,
   Settings,

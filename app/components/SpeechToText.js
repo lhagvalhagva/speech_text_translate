@@ -35,6 +35,7 @@ import {
 } from "./ui/alert-dialog";
 import defaultText from "./default";
 import { getPalmResponse } from "../lib/palm-ai";
+import { Input } from "./ui/input";
 
 const highlightText = (text) => {
   if (!text) return null;
@@ -109,6 +110,8 @@ const SpeechToText = () => {
   const [isProcessingAI, setIsProcessingAI] = useState(false);
   const [aiResponse, setAiResponse] = useState("");
   const [aiError, setAiError] = useState(null);
+  const [textInput, setTextInput] = useState("");
+
   useEffect(() => {
     if (showGuideAlert) {
       const timer = setTimeout(() => {
@@ -370,7 +373,7 @@ const SpeechToText = () => {
                 RETRY_DELAY
               );
             } else {
-              setError("Холболт амжилтгүй. Та дахин эхлүүлнэ үү.");
+              setError("Холболт амжилтгүй. Та д��хин эхлүүлнэ үү.");
               setIsListening(false);
             }
             return;
@@ -1235,7 +1238,7 @@ const SpeechToText = () => {
         const errorData = await response.json().catch(() => ({
           error: `HTTP error! status: ${response.status}`,
         }));
-        throw new Error(errorData.error || "AI хариулт авахад алдаа гарлаа");
+        throw new Error(errorData.error || "AI хариулт авах��д алдаа гарлаа");
       }
 
       const data = await response.json().catch(() => {
@@ -1262,6 +1265,37 @@ const SpeechToText = () => {
       });
     } finally {
       setIsProcessingAI(false);
+    }
+  };
+
+  // Текст оруулах үед дуудагдах handler
+  const handleTextSubmit = async () => {
+    if (!textInput.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Алдаа",
+        description: "Текст оруулна уу",
+      });
+      return;
+    }
+
+    try {
+      // AI response авах
+      await getAIResponse(textInput.trim());
+
+      // Текст field-ийг цэвэрлэх
+      setTextInput("");
+
+      toast({
+        title: "Амжилттай",
+        description: "Таны асуулт илгээгдлээ",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Алдаа",
+        description: "Асуулт илгээхэд алдаа гарлаа",
+      });
     }
   };
 
@@ -1465,16 +1499,27 @@ const SpeechToText = () => {
                       <Mic className="w-10 h-10 text-white" />
                     )}
                   </Button>
-                  {/* Цэвэрлэх товчлуур */}
-                  <Button
-                    onClick={clearTranscript}
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-600"
-                    size="sm"
-                    variant="ghost"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Цэвэрлэх
-                  </Button>
+                  {/* Text input section */}
+                  <div className="flex-1 flex gap-2">
+                    <Input
+                      type="text"
+                      placeholder="Текст оруулах..."
+                      value={textInput}
+                      onChange={(e) => setTextInput(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter") {
+                          handleTextSubmit();
+                        }
+                      }}
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={handleTextSubmit}
+                      disabled={!textInput.trim()}
+                    >
+                      Илгээх
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
