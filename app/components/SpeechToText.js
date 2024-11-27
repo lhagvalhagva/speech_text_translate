@@ -373,7 +373,7 @@ const SpeechToText = () => {
                 RETRY_DELAY
               );
             } else {
-              setError("Холболт амжилтгүй. Та д��хин эхлүүлнэ үү.");
+              setError("Холболт амжилтгүй. Та дхин эхлүүлнэ үү.");
               setIsListening(false);
             }
             return;
@@ -1238,7 +1238,7 @@ const SpeechToText = () => {
         const errorData = await response.json().catch(() => ({
           error: `HTTP error! status: ${response.status}`,
         }));
-        throw new Error(errorData.error || "AI хариулт авах��д алдаа гарлаа");
+        throw new Error(errorData.error || "AI хариулт авахд алдаа гарлаа");
       }
 
       const data = await response.json().catch(() => {
@@ -1565,6 +1565,15 @@ const SpeechToText = () => {
                 Монгол орчуулга
               </h2>
               <div className="flex items-center gap-4">
+                {/* Цэвэрлэх товч нэмэх */}
+                <Button
+                  onClick={clearTranscript}
+                  className="bg-gray-500 hover:bg-gray-600 text-white text-sm px-3 py-1"
+                  size="sm"
+                >
+                  Цэвэрлэх
+                </Button>
+
                 {!isTranslationEnabled ? (
                   <Button
                     onClick={() => setIsModalOpen(true)}
