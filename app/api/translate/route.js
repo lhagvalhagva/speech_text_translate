@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export const config = {
   runtime: "edge",
-  regions: ["iad1"], // Optionally specify regions
+  regions: ["iad1"],
 };
 
 export async function OPTIONS(request) {

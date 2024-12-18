@@ -14,7 +14,7 @@ export async function OPTIONS(request) {
 
 export const config = {
   runtime: "edge",
-  regions: ["iad1"], // Optionally specify regions
+  regions: ["iad1"],
 };
 
 export async function POST(request) {

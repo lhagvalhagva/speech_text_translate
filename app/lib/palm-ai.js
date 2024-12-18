@@ -147,6 +147,8 @@ export async function getPalmResponse(question, userId) {
     5. Always provide a helpful response based on your general knowledge when context is not available
     6. If you're not completely certain about something, acknowledge that while still providing your best guidance
     7. Respond in the same language as the user's question
+    
+  Finally, be brief and clear
 `;
 
     // Add safety check for result
